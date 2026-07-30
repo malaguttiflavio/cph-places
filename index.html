@@ -606,6 +606,14 @@ render();
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   navigator.serviceWorker.register("sw.js");
 }
+
+// iOS keeps home-screen apps suspended, so a reopen isn't a reload. Refresh
+// when returning to the foreground after 10+ minutes to pick up new deploys.
+let hiddenAt = null;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 10 * 60 * 1000) location.reload();
+});
 </script>
 </body>
 </html>
