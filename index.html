@@ -154,6 +154,8 @@
         <label class="btn ghost" style="display:inline-block;">Import<input type="file" id="importfile" accept=".json" style="display:none"></label>
       </div>
       <button class="btn ghost" id="restorebtn" style="display:none"></button>
+      <button class="btn ghost" id="syncbtn">☁️ Set up device sync</button>
+      <div class="hint" id="syncstatus"></div>
     </div>
   </div>
 </main>
@@ -191,7 +193,7 @@ const STATUSES = { want: "Want to go", beenplus: "Been 👍", beenminus: "Been �
 
 const store = {
   data: JSON.parse(localStorage.getItem("cphPlacesState") || "{}"),
-  save() { localStorage.setItem("cphPlacesState", JSON.stringify(this.data)); },
+  save() { localStorage.setItem("cphPlacesState", JSON.stringify(this.data)); syncPushSoon(); },
   status(id) { return this.data.statuses[id] || "want"; },
   setStatus(id, s) { this.data.statuses[id] = s; this.save(); },
   note(id) { return this.data.notes[id] ?? null; },
@@ -558,6 +560,134 @@ document.getElementById("roll").onclick = () => {
     <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
 };
 
+// ----- device sync via private GitHub repo -----
+// State lives in malaguttiflavio/cph-places-data (private): pull on open, push on change.
+const SYNC = { repo: "malaguttiflavio/cph-places-data", file: "user-state.json", sha: null, timer: null };
+const syncToken = () => localStorage.getItem("cphPlacesToken");
+const ghHeaders = () => ({ Authorization: "Bearer " + syncToken(), Accept: "application/vnd.github+json" });
+const ghUrl = () => `https://api.github.com/repos/${SYNC.repo}/contents/${SYNC.file}`;
+const b64enc = s => btoa(unescape(encodeURIComponent(s)));
+const b64dec = s => decodeURIComponent(escape(atob(s.replace(/\s/g, ""))));
+function setSyncStatus(t) { const el = document.getElementById("syncstatus"); if (el) el.textContent = t; }
+
+async function syncFetchRemote() {
+  const r = await fetch(ghUrl() + "?_=" + Date.now(), { headers: ghHeaders() });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error("GitHub " + r.status);
+  const js = await r.json();
+  SYNC.sha = js.sha;
+  return JSON.parse(b64dec(js.content));
+}
+
+async function syncPull() {
+  if (!syncToken()) return;
+  try {
+    const remote = await syncFetchRemote();
+    if (remote) {
+      remote.statuses ||= {}; remote.notes ||= {}; remote.cats ||= {}; remote.custom ||= []; remote.hidden ||= [];
+      store.data = remote;
+      localStorage.setItem("cphPlacesState", JSON.stringify(store.data)); // bypass save() to avoid echo push
+      render();
+    }
+    setSyncStatus("☁️ Synced " + new Date().toLocaleTimeString());
+  } catch (e) { setSyncStatus("☁️ Sync error: " + e.message); }
+}
+
+function syncPushSoon() {
+  if (!syncToken()) return;
+  clearTimeout(SYNC.timer);
+  SYNC.timer = setTimeout(syncPush, 1500);
+}
+
+async function syncPush() {
+  if (!syncToken()) return;
+  setSyncStatus("☁️ Syncing…");
+  try {
+    const body = { message: "sync from app", content: b64enc(JSON.stringify(store.data, null, 2)) };
+    if (SYNC.sha) body.sha = SYNC.sha;
+    let r = await fetch(ghUrl(), { method: "PUT", headers: ghHeaders(), body: JSON.stringify(body) });
+    if (r.status === 409 || r.status === 422) {
+      // Stale sha (another device pushed) — refresh sha and retry once.
+      await syncFetchRemote();
+      if (SYNC.sha) body.sha = SYNC.sha;
+      r = await fetch(ghUrl(), { method: "PUT", headers: ghHeaders(), body: JSON.stringify(body) });
+    }
+    if (!r.ok) throw new Error("GitHub " + r.status);
+    SYNC.sha = (await r.json()).content.sha;
+    setSyncStatus("☁️ Synced " + new Date().toLocaleTimeString());
+  } catch (e) { setSyncStatus("☁️ Sync error: " + e.message); }
+}
+
+function mergeStates(remote, local) {
+  // First-connect merge: union everything, local wins per item.
+  return {
+    statuses: { ...remote.statuses, ...local.statuses },
+    notes: { ...remote.notes, ...local.notes },
+    cats: { ...remote.cats, ...local.cats },
+    custom: [...remote.custom, ...local.custom.filter(l => !remote.custom.some(x => x.id === l.id))],
+    hidden: [...new Set([...(remote.hidden || []), ...(local.hidden || [])])],
+  };
+}
+
+document.getElementById("syncbtn").onclick = openSyncSheet;
+function openSyncSheet() {
+  const wrap = document.getElementById("sheetwrap");
+  const sheet = document.getElementById("sheet");
+  const connected = !!syncToken();
+  sheet.innerHTML = connected ? `
+    <h2>☁️ Device sync</h2>
+    <div class="sub">Connected — your statuses, notes, and added places sync through your private GitHub repo (cph-places-data).</div>
+    <div class="row">
+      <button class="btn" id="syncnow">Sync now</button>
+      <button class="btn ghost" id="closesheet">Close</button>
+      <button class="btn danger" id="syncoff">Disconnect this device</button>
+    </div>` : `
+    <h2>☁️ Set up device sync</h2>
+    <div class="sub">Syncs your data across devices through a private GitHub repo. One-time setup per device:</div>
+    <p class="lbl">1 — Create an access token (once, on any device)</p>
+    <div class="hint">Open <b>github.com/settings/personal-access-tokens/new</b> · name it e.g. "cph-sync" · set Expiration to 1 year · under Repository access choose <b>Only select repositories → cph-places-data</b> · under Permissions set <b>Contents → Read and write</b> · Generate and copy it.</div>
+    <p class="lbl">2 — Paste the token here</p>
+    <input type="text" id="tokeninput" placeholder="github_pat_…" autocomplete="off" autocapitalize="off">
+    <div class="hint">Stored only on this device and sent only to api.github.com.</div>
+    <div class="row">
+      <button class="btn" id="syncconnect">Connect</button>
+      <button class="btn ghost" id="closesheet">Cancel</button>
+    </div>
+    <div class="hint" id="syncmsg"></div>`;
+  sheet.querySelector("#closesheet").onclick = closeSheet;
+  if (connected) {
+    sheet.querySelector("#syncnow").onclick = async () => { await syncPush(); closeSheet(); };
+    sheet.querySelector("#syncoff").onclick = () => {
+      if (confirm("Disconnect sync on this device? Your data stays here and in the cloud.")) {
+        localStorage.removeItem("cphPlacesToken"); SYNC.sha = null; closeSheet(); render();
+      }
+    };
+  } else {
+    sheet.querySelector("#syncconnect").onclick = async () => {
+      const t = sheet.querySelector("#tokeninput").value.trim();
+      const msg = sheet.querySelector("#syncmsg");
+      if (!t) { msg.textContent = "Paste the token first"; return; }
+      msg.textContent = "Connecting…";
+      localStorage.setItem("cphPlacesToken", t);
+      try {
+        const remote = await syncFetchRemote();
+        if (remote) {
+          remote.statuses ||= {}; remote.notes ||= {}; remote.cats ||= {}; remote.custom ||= []; remote.hidden ||= [];
+          store.data = mergeStates(remote, store.data);
+        }
+        localStorage.setItem("cphPlacesState", JSON.stringify(store.data));
+        await syncPush();
+        closeSheet(); render();
+      } catch (e) {
+        localStorage.removeItem("cphPlacesToken");
+        msg.textContent = "Couldn't connect — check the token has Contents read/write on cph-places-data. (" + e.message + ")";
+      }
+    };
+  }
+  wrap.classList.add("on");
+  wrap.onclick = (e) => { if (e.target === wrap) closeSheet(); };
+}
+
 // ----- export / import -----
 document.getElementById("exportbtn").onclick = () => {
   const blob = new Blob([JSON.stringify(store.data, null, 2)], { type: "application/json" });
@@ -609,6 +739,7 @@ function render() {
       store.data.hidden = []; store.save(); render();
     }
   };
+  document.getElementById("syncbtn").textContent = syncToken() ? "☁️ Device sync: on" : "☁️ Set up device sync";
 }
 render();
 
@@ -622,7 +753,9 @@ let hiddenAt = null;
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") hiddenAt = Date.now();
   else if (hiddenAt && Date.now() - hiddenAt > 10 * 60 * 1000) location.reload();
+  else if (hiddenAt && Date.now() - hiddenAt > 60 * 1000) syncPull();
 });
+syncPull();
 </script>
 </body>
 </html>
