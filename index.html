@@ -153,6 +153,7 @@
         <button class="btn ghost" id="exportbtn">Export my data</button>
         <label class="btn ghost" style="display:inline-block;">Import<input type="file" id="importfile" accept=".json" style="display:none"></label>
       </div>
+      <button class="btn ghost" id="restorebtn" style="display:none"></button>
     </div>
   </div>
 </main>
@@ -199,13 +200,14 @@ store.data.statuses ||= {};
 store.data.notes ||= {};
 store.data.cats ||= {};    // per-place category overrides
 store.data.custom ||= [];  // places added in-app
+store.data.hidden ||= [];  // stock places the user deleted
 // Legacy migration: plain "been" predates the liked/disliked split.
 if (Object.values(store.data.statuses).includes("been")) {
   for (const [k, v] of Object.entries(store.data.statuses)) if (v === "been") store.data.statuses[k] = "beenplus";
   store.save();
 }
 
-function allPlaces() { return PLACES.concat(store.data.custom); }
+function allPlaces() { return PLACES.filter(p => !store.data.hidden.includes(p.id)).concat(store.data.custom); }
 function byId(id) { return allPlaces().find(x => x.id === id); }
 function effCats(p) {
   const o = store.data.cats[p.id];
@@ -348,7 +350,7 @@ function openSheet(id) {
     <div class="row">
       <a class="btn" style="text-decoration:none" href="${gmaps}" target="_blank">Open in Google Maps</a>
       <button class="btn ghost" id="closesheet">Close</button>
-      ${p.id.startsWith("c") ? '<button class="btn danger" id="delplace">Delete place</button>' : ""}
+      <button class="btn danger" id="delplace">Delete place</button>
     </div>`;
   sheet.querySelectorAll(".statusseg button").forEach(b => {
     b.onclick = () => { store.setStatus(id, b.dataset.s); openSheet(id); render(); };
@@ -364,10 +366,10 @@ function openSheet(id) {
   });
   sheet.querySelector("#noteedit").oninput = (e) => store.setNote(id, e.target.value);
   sheet.querySelector("#closesheet").onclick = closeSheet;
-  const del = sheet.querySelector("#delplace");
-  if (del) del.onclick = () => {
-    if (confirm(`Delete "${p.name}"?`)) {
-      store.data.custom = store.data.custom.filter(x => x.id !== p.id);
+  sheet.querySelector("#delplace").onclick = () => {
+    if (confirm(`Delete "${p.name}" from the app?`)) {
+      if (p.id.startsWith("c")) store.data.custom = store.data.custom.filter(x => x.id !== p.id);
+      else store.data.hidden.push(p.id);
       store.save(); closeSheet();
     }
   };
@@ -561,7 +563,7 @@ document.getElementById("importfile").onchange = (e) => {
   f.text().then(t => {
     try {
       store.data = JSON.parse(t);
-      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.custom ||= [];
+      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.custom ||= []; store.data.hidden ||= [];
       store.save(); render(); alert("Imported ✓");
     }
     catch { alert("Not a valid backup file"); }
@@ -589,6 +591,15 @@ function render() {
   const sv = Object.values(store.data.statuses);
   document.getElementById("counts").textContent =
     `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} ❤️`;
+  const rb = document.getElementById("restorebtn");
+  const nh = store.data.hidden.length;
+  rb.style.display = nh ? "" : "none";
+  rb.textContent = `Restore ${nh} deleted place${nh === 1 ? "" : "s"}`;
+  rb.onclick = () => {
+    if (confirm(`Bring back ${nh} deleted place${nh === 1 ? "" : "s"}?`)) {
+      store.data.hidden = []; store.save(); render();
+    }
+  };
 }
 render();
 
