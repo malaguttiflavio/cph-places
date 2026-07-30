@@ -107,4 +107,5 @@ const PLACES = [
   { id: "p103", name: "Cafe Væksthuset", cats: ["cafe"], area: "Frederiksberg", address: "Grønnegårdsvej 15, 1870 Frederiksberg", lat: 55.680929, lng: 12.540539, rating: 4.0, price: "1–100 kr", note: "In the Frederiksberg Gardens greenhouse" },
   { id: "p104", name: "Dropped pin (South Africa?)", cats: ["other"], area: "Out of town", address: "Near Ncambele, South Africa", lat: -30.4096414, lng: 29.6589319, note: "Stray pin from Maps list — probably delete" },
   { id: "p105", name: "Department of Economics (KU)", cats: ["other"], area: "Indre By", address: "Øster Farimagsgade 5, København", lat: 55.689149, lng: 12.570601, note: "" },
+  { id: "p106", name: "Frederiksberg Chokolade", cats: ["dessert", "shop"], area: "Frederiksberg", address: "Nyvej (off Gl. Kongevej), 1851 Frederiksberg", lat: 55.6743122, lng: 12.5387521, note: "Chocolate shop" },
 ];

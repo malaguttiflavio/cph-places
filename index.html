@@ -427,26 +427,32 @@ function openAddSheet() {
     const raw = sheet.querySelector("#np-link").value.trim();
     const url = (raw.match(/https?:\/\/\S+/) || [])[0];
     if (!url) { msgEl.textContent = "Paste a Google Maps link first"; return; }
-    // Google blocks cross-site reads, so resolve the link through a CORS relay.
-    // Free relays are flaky, so try several, twice, with a timeout each.
+    // Google blocks cross-site reads, so resolve the link through CORS relays.
+    // Free relays are flaky: race them all in parallel, first usable answer wins.
     const relays = [
+      u => "https://r.jina.ai/" + u,
       u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
       u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
       u => "https://api.codetabs.com/v1/proxy?quest=" + u,
     ];
+    const timeoutSignal = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
+    const usable = t => t.includes("/maps/place/") || /!3d-?\d+\.\d+!4d-?\d+\.\d+/.test(t);
+    const tryRelay = async (mk) => {
+      const r = await fetch(mk(url), { signal: timeoutSignal(12000) });
+      const t = await r.text();
+      if (!r.ok || !usable(t)) throw new Error("unusable");
+      return t;
+    };
     let html = null;
-    for (const mk of [...relays, ...relays]) {
-      msgEl.textContent = "Importing…";
-      try {
-        const r = await fetch(mk(url), { signal: AbortSignal.timeout(10000) });
-        const t = await r.text();
-        if (r.ok && t.includes("/maps/place/")) { html = t; break; }
-      } catch { /* next relay */ }
+    for (const round of [1, 2]) {
+      msgEl.textContent = round === 1 ? "Importing… (a few seconds)" : "Importing… (retrying)";
+      try { html = await Promise.any(relays.map(tryRelay)); break; } catch { /* next round */ }
     }
     if (!html) { msgEl.textContent = "Couldn't reach Google Maps right now — try again, or use Find address below"; return; }
     let name = null, coords2 = null;
     const mPlace = html.match(/\/maps\/place\/([^\/@"'\\]+)/);
     if (mPlace) { try { name = decodeURIComponent(mPlace[1].replace(/\+/g, " ")); } catch { name = mPlace[1]; } }
+    if (!name) { const mH = html.match(/^## (.+)$/m); if (mH) name = mH[1].trim(); }  // r.jina.ai markdown
     const mPin = html.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
     const mAt = html.match(/\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
     if (mPin) coords2 = { lat: +mPin[1], lng: +mPin[2] };
@@ -458,7 +464,8 @@ function openAddSheet() {
     if (coords2) {
       // Backfill address + neighborhood from the coordinates.
       try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords2.lat}&lon=${coords2.lng}`, { signal: AbortSignal.timeout(10000) });
+        const c = new AbortController(); setTimeout(() => c.abort(), 8000);
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords2.lat}&lon=${coords2.lng}`, { signal: c.signal });
         const js = await r.json();
         const a = js.address || {};
         const street = [a.road, a.house_number].filter(Boolean).join(" ");
