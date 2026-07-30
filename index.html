@@ -31,8 +31,12 @@
     padding: env(safe-area-inset-top) 0 0 0;
   }
   header { padding: 10px 14px 6px; flex: none; }
-  header h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: -0.02em; }
-  header h1 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .headrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+  #addbtn {
+    border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+    padding: 7px 13px; border-radius: 999px; cursor: pointer;
+  }
   #search {
     width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
     background: var(--panel); color: var(--ink); font-size: 15px; outline: none;
@@ -64,7 +68,7 @@
   .badge.want { border-color: var(--want); color: var(--want); }
   .badge.been { border-color: var(--been); color: var(--been); }
   .badge.fav  { border-color: var(--fav);  color: var(--fav); }
-  #tonight { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center; }
+  #tonight { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 18px; text-align: center; overflow-y: auto; }
   #tonight .card {
     background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
     padding: 26px 22px; max-width: 340px; width: 100%; box-shadow: 0 6px 24px rgba(0,0,0,.07);
@@ -77,6 +81,7 @@
     background: var(--accent); color: #fff; font-size: 15.5px; font-weight: 600;
   }
   .btn.ghost { background: none; border: 1.5px solid var(--line); color: var(--ink); font-weight: 500; }
+  .btn.danger { background: none; border: 1.5px solid var(--fav); color: var(--fav); font-weight: 500; }
   nav {
     flex: none; display: flex; border-top: 1px solid var(--line); background: var(--panel);
     padding-bottom: env(safe-area-inset-bottom);
@@ -92,15 +97,18 @@
   #sheet {
     position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel);
     border-radius: 18px 18px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
-    max-height: 78%; overflow-y: auto;
+    max-height: 85%; overflow-y: auto;
   }
   #sheet h2 { margin: 0 0 2px; font-size: 20px; }
   #sheet .sub { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
-  #sheet textarea {
-    width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 10px;
+  #sheet textarea, #sheet input[type=text] {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px;
     background: var(--bg); color: var(--ink); padding: 9px; font: inherit; font-size: 14.5px;
   }
+  #sheet textarea { min-height: 64px; }
   #sheet .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  #sheet .lbl { margin: 12px 0 4px; font-size: 13.5px; color: var(--muted); }
+  .catgrid { display: flex; flex-wrap: wrap; gap: 6px; }
   .statusseg { display: flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 4px; }
   .statusseg button { flex: 1; padding: 9px 4px; background: none; border: none; color: var(--muted); font-size: 13.5px; cursor: pointer; }
   .statusseg button.on.want { background: var(--want); color: #fff; }
@@ -110,12 +118,16 @@
   .leaflet-popup-content b { font-size: 15px; }
   .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
   #counts { color: var(--muted); font-size: 12.5px; padding: 0 14px 6px; flex: none; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>CPH Places<small id="headcount"></small></h1>
+  <div class="headrow">
+    <h1>CPH Places</h1>
+    <button id="addbtn">＋ Add place</button>
+  </div>
   <input id="search" type="search" placeholder="Search places, areas, notes…">
 </header>
 <div class="chiprow" id="catchips"></div>
@@ -172,35 +184,53 @@ const CATS = {
 const STATUSES = { want: "Want to go", been: "Been", fav: "❤️ Favorite" };
 
 const store = {
-  data: JSON.parse(localStorage.getItem("cphPlacesState") || '{"statuses":{},"notes":{}}'),
+  data: JSON.parse(localStorage.getItem("cphPlacesState") || "{}"),
   save() { localStorage.setItem("cphPlacesState", JSON.stringify(this.data)); },
   status(id) { return this.data.statuses[id] || "want"; },
   setStatus(id, s) { this.data.statuses[id] = s; this.save(); },
   note(id) { return this.data.notes[id] ?? null; },
   setNote(id, n) { this.data.notes[id] = n; this.save(); },
 };
+// Older backups may miss newer keys.
+store.data.statuses ||= {};
+store.data.notes ||= {};
+store.data.cats ||= {};    // per-place category overrides
+store.data.custom ||= [];  // places added in-app
+
+function allPlaces() { return PLACES.concat(store.data.custom); }
+function byId(id) { return allPlaces().find(x => x.id === id); }
+function effCats(p) {
+  const o = store.data.cats[p.id];
+  const c = (o && o.length) ? o : p.cats;
+  return c.length ? c : ["other"];
+}
+function setCats(p, cats) {
+  if (p.id.startsWith("c")) { p.cats = cats; }  // custom place: edit in place
+  else { store.data.cats[p.id] = cats; }        // stock place: override
+  store.save();
+}
+function effNote(p) { const n = store.note(p.id); return n !== null ? n : (p.note || ""); }
 
 let catFilter = null, statusFilter = null, query = "";
 
-function effNote(p) { const n = store.note(p.id); return n !== null ? n : (p.note || ""); }
 function matches(p) {
-  if (catFilter && p.cat !== catFilter) return false;
+  if (catFilter && !effCats(p).includes(catFilter)) return false;
   if (statusFilter && store.status(p.id) !== statusFilter) return false;
   if (query) {
     const q = query.toLowerCase();
-    const hay = (p.name + " " + p.area + " " + p.address + " " + effNote(p) + " " + CATS[p.cat].label).toLowerCase();
+    const hay = (p.name + " " + p.area + " " + (p.address || "") + " " + effNote(p) + " " +
+      effCats(p).map(c => CATS[c].label).join(" ")).toLowerCase();
     if (!hay.includes(q)) return false;
   }
   return true;
 }
-const filtered = () => PLACES.filter(matches);
+const filtered = () => allPlaces().filter(matches);
 
 // ----- chips -----
 function buildChips() {
   const cc = document.getElementById("catchips");
   cc.innerHTML = "";
-  const allBtn = mkChip("All", () => { catFilter = null; render(); }, catFilter === null);
-  cc.appendChild(allBtn);
+  cc.appendChild(mkChip("All", () => { catFilter = null; render(); }, catFilter === null));
   for (const [k, c] of Object.entries(CATS)) {
     cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
   }
@@ -230,13 +260,14 @@ function renderMap() {
   markers = [];
   for (const p of filtered()) {
     const st = store.status(p.id);
+    const c0 = CATS[effCats(p)[0]];
     const m = L.circleMarker([p.lat, p.lng], {
       radius: st === "fav" ? 9 : 7,
-      color: st === "been" ? "#9aa3ad" : CATS[p.cat].color,
-      fillColor: st === "been" ? "#9aa3ad" : CATS[p.cat].color,
+      color: st === "been" ? "#9aa3ad" : c0.color,
+      fillColor: st === "been" ? "#9aa3ad" : c0.color,
       fillOpacity: st === "been" ? 0.4 : 0.85, weight: st === "fav" ? 3 : 1.5,
     }).addTo(map);
-    m.bindPopup(`<b>${esc(p.name)}</b><br>${CATS[p.cat].emoji} ${CATS[p.cat].label}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
+    m.bindPopup(`<b>${esc(p.name)}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
 }
@@ -248,10 +279,11 @@ function renderList() {
   const items = filtered().slice().sort((a, b) => a.name.localeCompare(b.name));
   for (const p of items) {
     const st = store.status(p.id);
+    const cats = effCats(p);
     const div = document.createElement("div");
     div.className = "item";
-    const sub = [CATS[p.cat].emoji + " " + p.area, p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
-    div.innerHTML = `<span class="dot" style="background:${CATS[p.cat].color}"></span>
+    const sub = [cats.map(c => CATS[c].emoji).join("") + " " + p.area, p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
+    div.innerHTML = `<span class="dot" style="background:${CATS[cats[0]].color}"></span>
       <span class="tx"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
@@ -272,33 +304,135 @@ function cycleStatus(id) {
 
 // ----- detail sheet -----
 function openSheet(id) {
-  const p = PLACES.find(x => x.id === id);
+  const p = byId(id);
+  if (!p) return;
   const st = store.status(id);
+  const cats = effCats(p);
   const wrap = document.getElementById("sheetwrap");
   const sheet = document.getElementById("sheet");
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
   sheet.innerHTML = `
-    <h2>${CATS[p.cat].emoji} ${esc(p.name)}</h2>
+    <h2>${CATS[cats[0]].emoji} ${esc(p.name)}</h2>
     <div class="sub">${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
     <div class="statusseg">
       ${Object.entries(STATUSES).map(([k, lab]) =>
         `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
-    <p style="margin:12px 0 4px;font-size:13.5px;color:var(--muted)">My note</p>
+    <p class="lbl">Categories — tap to toggle</p>
+    <div class="catgrid" id="catedit">
+      ${Object.entries(CATS).map(([k, c]) =>
+        `<button class="chip${cats.includes(k) ? " on" : ""}" data-c="${k}">${c.emoji} ${c.label}</button>`).join("")}
+    </div>
+    <p class="lbl">My note</p>
     <textarea id="noteedit" placeholder="Who recommended it, what to order, date-worthy?…">${esc(effNote(p))}</textarea>
     <div class="row">
       <a class="btn" style="text-decoration:none" href="${gmaps}" target="_blank">Open in Google Maps</a>
       <button class="btn ghost" id="closesheet">Close</button>
+      ${p.id.startsWith("c") ? '<button class="btn danger" id="delplace">Delete place</button>' : ""}
     </div>`;
   sheet.querySelectorAll(".statusseg button").forEach(b => {
     b.onclick = () => { store.setStatus(id, b.dataset.s); openSheet(id); render(); };
   });
+  sheet.querySelectorAll("#catedit .chip").forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.c;
+      let next = cats.includes(k) ? cats.filter(x => x !== k) : [...cats, k];
+      if (!next.length) next = ["other"];
+      setCats(p, next);
+      openSheet(id); render();
+    };
+  });
   sheet.querySelector("#noteedit").oninput = (e) => store.setNote(id, e.target.value);
   sheet.querySelector("#closesheet").onclick = closeSheet;
+  const del = sheet.querySelector("#delplace");
+  if (del) del.onclick = () => {
+    if (confirm(`Delete "${p.name}"?`)) {
+      store.data.custom = store.data.custom.filter(x => x.id !== p.id);
+      store.save(); closeSheet();
+    }
+  };
   wrap.classList.add("on");
   wrap.onclick = (e) => { if (e.target === wrap) closeSheet(); };
 }
 function closeSheet() { document.getElementById("sheetwrap").classList.remove("on"); render(); }
+
+// ----- add place -----
+document.getElementById("addbtn").onclick = openAddSheet;
+function openAddSheet() {
+  const wrap = document.getElementById("sheetwrap");
+  const sheet = document.getElementById("sheet");
+  let newCats = [];
+  let coords = null;
+  sheet.innerHTML = `
+    <h2>＋ Add a place</h2>
+    <p class="lbl">Name</p>
+    <input type="text" id="np-name" placeholder="e.g. Juno the Bakery">
+    <p class="lbl">Categories — tap all that apply</p>
+    <div class="catgrid" id="np-cats">
+      ${Object.entries(CATS).map(([k, c]) => `<button class="chip" data-c="${k}">${c.emoji} ${c.label}</button>`).join("")}
+    </div>
+    <p class="lbl">Location — search the address, or use where you are now</p>
+    <input type="text" id="np-addr" placeholder="e.g. Århusgade 48, København">
+    <div class="row">
+      <button class="btn ghost" id="np-geocode">🔍 Find address</button>
+      <button class="btn ghost" id="np-here">📍 I'm there now</button>
+    </div>
+    <div class="hint" id="np-loc">No location yet</div>
+    <p class="lbl">Area / neighborhood (optional)</p>
+    <input type="text" id="np-area" placeholder="e.g. Østerbro">
+    <p class="lbl">Note (optional)</p>
+    <textarea id="np-note" placeholder="Why is it on the list?"></textarea>
+    <div class="row">
+      <button class="btn" id="np-save">Save place</button>
+      <button class="btn ghost" id="closesheet">Cancel</button>
+    </div>`;
+  const locEl = sheet.querySelector("#np-loc");
+  sheet.querySelectorAll("#np-cats .chip").forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.c;
+      newCats = newCats.includes(k) ? newCats.filter(x => x !== k) : [...newCats, k];
+      b.classList.toggle("on");
+    };
+  });
+  sheet.querySelector("#np-geocode").onclick = async () => {
+    const q = sheet.querySelector("#np-addr").value.trim() || sheet.querySelector("#np-name").value.trim();
+    if (!q) { locEl.textContent = "Type an address or name first"; return; }
+    locEl.textContent = "Searching…";
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=dk,se,de&q=${encodeURIComponent(q)}`);
+      const js = await r.json();
+      if (js.length) {
+        coords = { lat: +js[0].lat, lng: +js[0].lon };
+        locEl.textContent = `✓ Found: ${js[0].display_name.slice(0, 70)}…`;
+      } else locEl.textContent = "No match — try adding the street or city";
+    } catch { locEl.textContent = "Search failed — check connection"; }
+  };
+  sheet.querySelector("#np-here").onclick = () => {
+    locEl.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      pos => { coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; locEl.textContent = `✓ Using your current location`; },
+      () => { locEl.textContent = "Couldn't get location — allow access in Settings"; },
+      { enableHighAccuracy: true, timeout: 8000 });
+  };
+  sheet.querySelector("#np-save").onclick = () => {
+    const name = sheet.querySelector("#np-name").value.trim();
+    if (!name) { alert("Give it a name"); return; }
+    if (!coords) { alert("Set a location first (Find address or I'm there now)"); return; }
+    store.data.custom.push({
+      id: "c" + Date.now(),
+      name,
+      cats: newCats.length ? newCats : ["other"],
+      area: sheet.querySelector("#np-area").value.trim() || "Copenhagen",
+      address: sheet.querySelector("#np-addr").value.trim(),
+      lat: coords.lat, lng: coords.lng,
+      note: sheet.querySelector("#np-note").value.trim(),
+    });
+    store.save(); closeSheet();
+  };
+  sheet.querySelector("#closesheet").onclick = closeSheet;
+  wrap.classList.add("on");
+  wrap.onclick = (e) => { if (e.target === wrap) closeSheet(); };
+}
 
 // ----- tonight -----
 const MOODS = {
@@ -328,16 +462,15 @@ function buildMoodChips() {
 buildMoodChips();
 document.getElementById("roll").onclick = () => {
   // Mood spans several categories and skips places already visited; favorites count double.
-  let pool = PLACES.filter(p =>
-    (mood ? MOODS[mood].cats.includes(p.cat) : p.cat !== "other") &&
-    store.status(p.id) !== "been");
-  if (!pool.length) pool = PLACES.filter(p => !mood || MOODS[mood].cats.includes(p.cat));
+  const inMood = p => mood ? effCats(p).some(c => MOODS[mood].cats.includes(c)) : !effCats(p).includes("other");
+  let pool = allPlaces().filter(p => inMood(p) && store.status(p.id) !== "been");
+  if (!pool.length) pool = allPlaces().filter(inMood);
   if (!pool.length) return;
   const weighted = pool.flatMap(p => store.status(p.id) === "fav" ? [p, p] : [p]);
   const p = weighted[Math.floor(Math.random() * weighted.length)];
   const c = document.getElementById("tcard");
-  c.innerHTML = `<div class="cat">${CATS[p.cat].emoji}</div><h2>${esc(p.name)}</h2>
-    <div class="sub">${CATS[p.cat].label} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
+  c.innerHTML = `<div class="cat">${CATS[effCats(p)[0]].emoji}</div><h2>${esc(p.name)}</h2>
+    <div class="sub">${effCats(p).map(x => CATS[x].label).join(" · ")} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
     <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
 };
 
@@ -353,7 +486,11 @@ document.getElementById("importfile").onchange = (e) => {
   const f = e.target.files[0];
   if (!f) return;
   f.text().then(t => {
-    try { store.data = JSON.parse(t); store.save(); render(); alert("Imported ✓"); }
+    try {
+      store.data = JSON.parse(t);
+      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.custom ||= [];
+      store.save(); render(); alert("Imported ✓");
+    }
     catch { alert("Not a valid backup file"); }
   });
 };
@@ -376,9 +513,8 @@ function render() {
   renderMap();
   renderList();
   const n = filtered().length;
-  document.getElementById("headcount").textContent = "";
   document.getElementById("counts").textContent =
-    `${n} of ${PLACES.length} places · ${Object.values(store.data.statuses).filter(s => s === "been").length} visited · ${Object.values(store.data.statuses).filter(s => s === "fav").length} favorites`;
+    `${n} of ${allPlaces().length} places · ${Object.values(store.data.statuses).filter(s => s === "been").length} visited · ${Object.values(store.data.statuses).filter(s => s === "fav").length} favorites`;
 }
 render();
 

@@ -23,10 +23,14 @@ Open the hosted URL in Safari → Share → **Add to Home Screen**. Runs fullscr
 
 ## Adding places
 
-Edit `places.js` — each entry:
+Two ways:
+
+1. **In the app**: tap **＋ Add place** — categories, address search (OpenStreetMap geocoder) or current location. Saved to the phone's localStorage and included in Export backups.
+2. **In the data**: edit `places.js` — each entry:
 
 ```js
-{ id: "p106", name: "…", cat: "wine", area: "Nørrebro", address: "…", lat: 55.68, lng: 12.55, rating: 4.5, price: "100–200 kr", note: "…" }
+{ id: "p106", name: "…", cats: ["wine", "jazz"], area: "Nørrebro", address: "…", lat: 55.68, lng: 12.55, rating: 4.5, price: "100–200 kr", note: "…" }
 ```
 
-Categories: `cafe, bakery, bar, wine, jazz, club, restaurant, street, museum, sight, stage, shop, trip, other`.
+Categories (a place can have several): `cafe, bakery, bar, wine, jazz, club, restaurant, street, museum, sight, stage, shop, trip, other`.
+Category edits made in the app are stored as per-place overrides in localStorage.
