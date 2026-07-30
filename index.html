@@ -133,6 +133,7 @@
   <input id="search" type="search" placeholder="Search places, areas, notes…">
 </header>
 <div class="chiprow" id="catchips"></div>
+<div class="chiprow" id="areachips"></div>
 <div class="chiprow" id="statuschips"></div>
 <div id="counts"></div>
 
@@ -218,10 +219,11 @@ function setCats(p, cats) {
 }
 function effNote(p) { const n = store.note(p.id); return n !== null ? n : (p.note || ""); }
 
-let catFilter = null, statusFilter = null, query = "";
+let catFilter = null, statusFilter = null, areaFilter = null, query = "";
 
 function matches(p) {
   if (catFilter && !effCats(p).includes(catFilter)) return false;
+  if (areaFilter && p.area !== areaFilter) return false;
   if (statusFilter && store.status(p.id) !== statusFilter) return false;
   if (query) {
     const q = query.toLowerCase();
@@ -240,6 +242,15 @@ function buildChips() {
   cc.appendChild(mkChip("All", () => { catFilter = null; render(); }, catFilter === null));
   for (const [k, c] of Object.entries(CATS)) {
     cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
+  }
+  const ac = document.getElementById("areachips");
+  ac.innerHTML = "";
+  ac.appendChild(mkChip("All areas", () => { areaFilter = null; render(); }, areaFilter === null));
+  const areaCounts = {};
+  for (const p of allPlaces()) areaCounts[p.area] = (areaCounts[p.area] || 0) + 1;
+  const areas = Object.keys(areaCounts).sort((a, b) => areaCounts[b] - areaCounts[a] || a.localeCompare(b));
+  for (const a of areas) {
+    ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => { areaFilter = areaFilter === a ? null : a; render(); }, areaFilter === a));
   }
   const sc = document.getElementById("statuschips");
   sc.innerHTML = "";
@@ -374,6 +385,10 @@ function openAddSheet() {
   let coords = null;
   sheet.innerHTML = `
     <h2>＋ Add a place</h2>
+    <p class="lbl">Paste a Google Maps link and everything fills in itself</p>
+    <input type="text" id="np-link" placeholder="e.g. https://maps.app.goo.gl/…">
+    <div class="row"><button class="btn ghost" id="np-import">✨ Import from link</button></div>
+    <div class="hint" id="np-importmsg"></div>
     <p class="lbl">Name</p>
     <input type="text" id="np-name" placeholder="e.g. Juno the Bakery">
     <p class="lbl">Categories — tap all that apply</p>
@@ -403,6 +418,54 @@ function openAddSheet() {
       b.classList.toggle("on");
     };
   });
+  sheet.querySelector("#np-import").onclick = async () => {
+    const msgEl = sheet.querySelector("#np-importmsg");
+    const raw = sheet.querySelector("#np-link").value.trim();
+    const url = (raw.match(/https?:\/\/\S+/) || [])[0];
+    if (!url) { msgEl.textContent = "Paste a Google Maps link first"; return; }
+    // Google blocks cross-site reads, so resolve the link through a CORS relay.
+    // Free relays are flaky, so try several, twice, with a timeout each.
+    const relays = [
+      u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+      u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+      u => "https://api.codetabs.com/v1/proxy?quest=" + u,
+    ];
+    let html = null;
+    for (const mk of [...relays, ...relays]) {
+      msgEl.textContent = "Importing…";
+      try {
+        const r = await fetch(mk(url), { signal: AbortSignal.timeout(10000) });
+        const t = await r.text();
+        if (r.ok && t.includes("/maps/place/")) { html = t; break; }
+      } catch { /* next relay */ }
+    }
+    if (!html) { msgEl.textContent = "Couldn't reach Google Maps right now — try again, or use Find address below"; return; }
+    let name = null, coords2 = null;
+    const mPlace = html.match(/\/maps\/place\/([^\/@"'\\]+)/);
+    if (mPlace) { try { name = decodeURIComponent(mPlace[1].replace(/\+/g, " ")); } catch { name = mPlace[1]; } }
+    const mPin = html.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    const mAt = html.match(/\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (mPin) coords2 = { lat: +mPin[1], lng: +mPin[2] };
+    else if (mAt) coords2 = { lat: +mAt[1], lng: +mAt[2] };
+    if (!name && !coords2) { msgEl.textContent = "Couldn't read that link — use Find address below"; return; }
+    if (name) sheet.querySelector("#np-name").value = name;
+    if (coords2) { coords = coords2; locEl.textContent = "✓ Location set from link"; }
+    msgEl.textContent = `✓ Imported${name ? ": " + name : ""} — pick categories and save`;
+    if (coords2) {
+      // Backfill address + neighborhood from the coordinates.
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords2.lat}&lon=${coords2.lng}`, { signal: AbortSignal.timeout(10000) });
+        const js = await r.json();
+        const a = js.address || {};
+        const street = [a.road, a.house_number].filter(Boolean).join(" ");
+        const cityline = [a.postcode, a.city || a.town || a.village].filter(Boolean).join(" ");
+        const addr = [street, cityline].filter(Boolean).join(", ");
+        if (addr && !sheet.querySelector("#np-addr").value) sheet.querySelector("#np-addr").value = addr;
+        const hood = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.city || "";
+        if (hood && !sheet.querySelector("#np-area").value) sheet.querySelector("#np-area").value = hood;
+      } catch { /* address stays manual */ }
+    }
+  };
   sheet.querySelector("#np-geocode").onclick = async () => {
     const q = sheet.querySelector("#np-addr").value.trim() || sheet.querySelector("#np-name").value.trim();
     if (!q) { locEl.textContent = "Type an address or name first"; return; }
