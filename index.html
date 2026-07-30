@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#101418">
+<title>CPH Places</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1c1c1e; --muted: #6b7280;
+    --line: #e5e1d8; --accent: #b3502d; --chip: #ece8df; --chip-on: #1c1c1e;
+    --want: #b3502d; --been: #4b7f52; --fav: #c2372e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101418; --panel: #1a2027; --ink: #ececec; --muted: #9aa3ad;
+      --line: #2a323b; --accent: #e07a4f; --chip: #232b34; --chip-on: #ececec;
+      --want: #e07a4f; --been: #7dbb85; --fav: #ef6a5f;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink);
+    display: flex; flex-direction: column; overflow: hidden;
+    padding: env(safe-area-inset-top) 0 0 0;
+  }
+  header { padding: 10px 14px 6px; flex: none; }
+  header h1 { margin: 0 0 8px; font-size: 22px; letter-spacing: -0.02em; }
+  header h1 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  #search {
+    width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); font-size: 15px; outline: none;
+  }
+  .chiprow { display: flex; gap: 6px; overflow-x: auto; padding: 8px 14px 4px; flex: none; scrollbar-width: none; }
+  .chiprow::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; padding: 6px 11px; border-radius: 999px; background: var(--chip);
+    border: 1px solid transparent; color: var(--ink); font-size: 13.5px; cursor: pointer; user-select: none;
+  }
+  .chip.on { background: var(--chip-on); color: var(--bg); }
+  main { flex: 1; position: relative; overflow: hidden; }
+  .view { position: absolute; inset: 0; display: none; }
+  .view.on { display: block; }
+  #map { height: 100%; }
+  #listview { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 14px 20px; }
+  .item {
+    display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin-bottom: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
+  }
+  .item .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+  .item .tx { flex: 1; min-width: 0; }
+  .item .nm { font-weight: 600; font-size: 15.5px; }
+  .item .sub { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge {
+    flex: none; font-size: 12px; padding: 4px 9px; border-radius: 999px;
+    border: 1.5px solid var(--line); color: var(--muted); background: none; cursor: pointer;
+  }
+  .badge.want { border-color: var(--want); color: var(--want); }
+  .badge.been { border-color: var(--been); color: var(--been); }
+  .badge.fav  { border-color: var(--fav);  color: var(--fav); }
+  #tonight { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 24px; text-align: center; }
+  #tonight .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 26px 22px; max-width: 340px; width: 100%; box-shadow: 0 6px 24px rgba(0,0,0,.07);
+  }
+  #tonight .cat { font-size: 34px; }
+  #tonight h2 { margin: 8px 0 4px; font-size: 21px; }
+  #tonight .sub { color: var(--muted); font-size: 14px; }
+  .btn {
+    margin-top: 14px; padding: 11px 18px; border-radius: 12px; border: none; cursor: pointer;
+    background: var(--accent); color: #fff; font-size: 15.5px; font-weight: 600;
+  }
+  .btn.ghost { background: none; border: 1.5px solid var(--line); color: var(--ink); font-weight: 500; }
+  nav {
+    flex: none; display: flex; border-top: 1px solid var(--line); background: var(--panel);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav button {
+    flex: 1; padding: 10px 0 8px; background: none; border: none; color: var(--muted);
+    font-size: 11.5px; cursor: pointer;
+  }
+  nav button .ic { display: block; font-size: 21px; margin-bottom: 1px; }
+  nav button.on { color: var(--accent); }
+  #sheetwrap { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 2000; }
+  #sheetwrap.on { display: block; }
+  #sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel);
+    border-radius: 18px 18px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    max-height: 78%; overflow-y: auto;
+  }
+  #sheet h2 { margin: 0 0 2px; font-size: 20px; }
+  #sheet .sub { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+  #sheet textarea {
+    width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--ink); padding: 9px; font: inherit; font-size: 14.5px;
+  }
+  #sheet .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .statusseg { display: flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 4px; }
+  .statusseg button { flex: 1; padding: 9px 4px; background: none; border: none; color: var(--muted); font-size: 13.5px; cursor: pointer; }
+  .statusseg button.on.want { background: var(--want); color: #fff; }
+  .statusseg button.on.been { background: var(--been); color: #fff; }
+  .statusseg button.on.fav  { background: var(--fav);  color: #fff; }
+  .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
+  .leaflet-popup-content b { font-size: 15px; }
+  .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
+  #counts { color: var(--muted); font-size: 12.5px; padding: 0 14px 6px; flex: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CPH Places<small id="headcount"></small></h1>
+  <input id="search" type="search" placeholder="Search places, areas, notes…">
+</header>
+<div class="chiprow" id="catchips"></div>
+<div class="chiprow" id="statuschips"></div>
+<div id="counts"></div>
+
+<main>
+  <div class="view on" id="mapview"><div id="map"></div></div>
+  <div class="view" id="listview"></div>
+  <div class="view" id="tonightview">
+    <div id="tonight">
+      <div class="card" id="tcard">
+        <div class="cat">🎲</div>
+        <h2>Where to tonight?</h2>
+        <div class="sub">Uses your active filters — e.g. tap 🍷 Wine + Want to go, then roll.</div>
+      </div>
+      <button class="btn" id="roll">Surprise me</button>
+      <div class="row" style="margin-top:18px; display:flex; gap:8px;">
+        <button class="btn ghost" id="exportbtn">Export my data</button>
+        <label class="btn ghost" style="display:inline-block;">Import<input type="file" id="importfile" accept=".json" style="display:none"></label>
+      </div>
+    </div>
+  </div>
+</main>
+
+<nav>
+  <button data-v="mapview" class="on"><span class="ic">🗺️</span>Map</button>
+  <button data-v="listview"><span class="ic">📋</span>List</button>
+  <button data-v="tonightview"><span class="ic">🎲</span>Tonight</button>
+</nav>
+
+<div id="sheetwrap"><div id="sheet"></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="places.js"></script>
+<script>
+const CATS = {
+  cafe:       { label: "Cafés",          emoji: "☕", color: "#a4753a" },
+  bakery:     { label: "Bakeries",       emoji: "🥐", color: "#d8a13a" },
+  bar:        { label: "Bars",           emoji: "🍺", color: "#c2622e" },
+  wine:       { label: "Wine",           emoji: "🍷", color: "#8e3b52" },
+  jazz:       { label: "Jazz & Music",   emoji: "🎷", color: "#3f5da8" },
+  club:       { label: "Clubs",          emoji: "🪩", color: "#7b4fa5" },
+  restaurant: { label: "Restaurants",    emoji: "🍝", color: "#b8452f" },
+  street:     { label: "Street food",    emoji: "🌭", color: "#d0763a" },
+  museum:     { label: "Museums & Art",  emoji: "🖼️", color: "#2e7d7b" },
+  sight:      { label: "Sights",         emoji: "🏛️", color: "#5a7a4f" },
+  stage:      { label: "Stage & Screen", emoji: "🎭", color: "#a5486d" },
+  shop:       { label: "Shops & Books",  emoji: "🛍️", color: "#587a8a" },
+  trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
+  other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
+};
+const STATUSES = { want: "Want to go", been: "Been", fav: "❤️ Favorite" };
+
+const store = {
+  data: JSON.parse(localStorage.getItem("cphPlacesState") || '{"statuses":{},"notes":{}}'),
+  save() { localStorage.setItem("cphPlacesState", JSON.stringify(this.data)); },
+  status(id) { return this.data.statuses[id] || "want"; },
+  setStatus(id, s) { this.data.statuses[id] = s; this.save(); },
+  note(id) { return this.data.notes[id] ?? null; },
+  setNote(id, n) { this.data.notes[id] = n; this.save(); },
+};
+
+let catFilter = null, statusFilter = null, query = "";
+
+function effNote(p) { const n = store.note(p.id); return n !== null ? n : (p.note || ""); }
+function matches(p) {
+  if (catFilter && p.cat !== catFilter) return false;
+  if (statusFilter && store.status(p.id) !== statusFilter) return false;
+  if (query) {
+    const q = query.toLowerCase();
+    const hay = (p.name + " " + p.area + " " + p.address + " " + effNote(p) + " " + CATS[p.cat].label).toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+const filtered = () => PLACES.filter(matches);
+
+// ----- chips -----
+function buildChips() {
+  const cc = document.getElementById("catchips");
+  cc.innerHTML = "";
+  const allBtn = mkChip("All", () => { catFilter = null; render(); }, catFilter === null);
+  cc.appendChild(allBtn);
+  for (const [k, c] of Object.entries(CATS)) {
+    cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
+  }
+  const sc = document.getElementById("statuschips");
+  sc.innerHTML = "";
+  sc.appendChild(mkChip("Any status", () => { statusFilter = null; render(); }, statusFilter === null));
+  for (const [k, lab] of Object.entries(STATUSES)) {
+    sc.appendChild(mkChip(lab, () => { statusFilter = statusFilter === k ? null : k; render(); }, statusFilter === k));
+  }
+}
+function mkChip(label, onclick, on) {
+  const b = document.createElement("button");
+  b.className = "chip" + (on ? " on" : "");
+  b.textContent = label;
+  b.onclick = onclick;
+  return b;
+}
+
+// ----- map -----
+const map = L.map("map", { zoomControl: false }).setView([55.6785, 12.5555], 13);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+  attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 20,
+}).addTo(map);
+let markers = [];
+function renderMap() {
+  markers.forEach(m => m.remove());
+  markers = [];
+  for (const p of filtered()) {
+    const st = store.status(p.id);
+    const m = L.circleMarker([p.lat, p.lng], {
+      radius: st === "fav" ? 9 : 7,
+      color: st === "been" ? "#9aa3ad" : CATS[p.cat].color,
+      fillColor: st === "been" ? "#9aa3ad" : CATS[p.cat].color,
+      fillOpacity: st === "been" ? 0.4 : 0.85, weight: st === "fav" ? 3 : 1.5,
+    }).addTo(map);
+    m.bindPopup(`<b>${esc(p.name)}</b><br>${CATS[p.cat].emoji} ${CATS[p.cat].label}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
+    markers.push(m);
+  }
+}
+
+// ----- list -----
+function renderList() {
+  const el = document.getElementById("listview");
+  el.innerHTML = "";
+  const items = filtered().slice().sort((a, b) => a.name.localeCompare(b.name));
+  for (const p of items) {
+    const st = store.status(p.id);
+    const div = document.createElement("div");
+    div.className = "item";
+    const sub = [CATS[p.cat].emoji + " " + p.area, p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
+    div.innerHTML = `<span class="dot" style="background:${CATS[p.cat].color}"></span>
+      <span class="tx"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(sub)}</div></span>`;
+    const badge = document.createElement("button");
+    badge.className = "badge " + st;
+    badge.textContent = st === "want" ? "Want" : st === "been" ? "Been" : "❤️";
+    badge.onclick = (e) => { e.stopPropagation(); cycleStatus(p.id); };
+    div.appendChild(badge);
+    div.onclick = () => openSheet(p.id);
+    el.appendChild(div);
+  }
+  if (!items.length) el.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:40px">Nothing matches — clear some filters.</p>';
+}
+function cycleStatus(id) {
+  const order = ["want", "been", "fav"];
+  const next = order[(order.indexOf(store.status(id)) + 1) % 3];
+  store.setStatus(id, next);
+  render();
+}
+
+// ----- detail sheet -----
+function openSheet(id) {
+  const p = PLACES.find(x => x.id === id);
+  const st = store.status(id);
+  const wrap = document.getElementById("sheetwrap");
+  const sheet = document.getElementById("sheet");
+  const gmaps = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+  sheet.innerHTML = `
+    <h2>${CATS[p.cat].emoji} ${esc(p.name)}</h2>
+    <div class="sub">${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
+    <div class="statusseg">
+      ${Object.entries(STATUSES).map(([k, lab]) =>
+        `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
+    </div>
+    <p style="margin:12px 0 4px;font-size:13.5px;color:var(--muted)">My note</p>
+    <textarea id="noteedit" placeholder="Who recommended it, what to order, date-worthy?…">${esc(effNote(p))}</textarea>
+    <div class="row">
+      <a class="btn" style="text-decoration:none" href="${gmaps}" target="_blank">Open in Google Maps</a>
+      <button class="btn ghost" id="closesheet">Close</button>
+    </div>`;
+  sheet.querySelectorAll(".statusseg button").forEach(b => {
+    b.onclick = () => { store.setStatus(id, b.dataset.s); openSheet(id); render(); };
+  });
+  sheet.querySelector("#noteedit").oninput = (e) => store.setNote(id, e.target.value);
+  sheet.querySelector("#closesheet").onclick = closeSheet;
+  wrap.classList.add("on");
+  wrap.onclick = (e) => { if (e.target === wrap) closeSheet(); };
+}
+function closeSheet() { document.getElementById("sheetwrap").classList.remove("on"); render(); }
+
+// ----- tonight -----
+document.getElementById("roll").onclick = () => {
+  let pool = filtered().filter(p => store.status(p.id) !== "been" && p.cat !== "other");
+  if (!pool.length) pool = filtered();
+  if (!pool.length) return;
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  const c = document.getElementById("tcard");
+  c.innerHTML = `<div class="cat">${CATS[p.cat].emoji}</div><h2>${esc(p.name)}</h2>
+    <div class="sub">${CATS[p.cat].label} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}<br>${esc(effNote(p))}</div>
+    <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
+};
+
+// ----- export / import -----
+document.getElementById("exportbtn").onclick = () => {
+  const blob = new Blob([JSON.stringify(store.data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cph-places-backup.json";
+  a.click();
+};
+document.getElementById("importfile").onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  f.text().then(t => {
+    try { store.data = JSON.parse(t); store.save(); render(); alert("Imported ✓"); }
+    catch { alert("Not a valid backup file"); }
+  });
+};
+
+// ----- nav / search -----
+document.querySelectorAll("nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".view").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    document.getElementById(b.dataset.v).classList.add("on");
+    if (b.dataset.v === "mapview") setTimeout(() => map.invalidateSize(), 60);
+  };
+});
+document.getElementById("search").oninput = (e) => { query = e.target.value.trim(); render(); };
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function render() {
+  buildChips();
+  renderMap();
+  renderList();
+  const n = filtered().length;
+  document.getElementById("headcount").textContent = "";
+  document.getElementById("counts").textContent =
+    `${n} of ${PLACES.length} places · ${Object.values(store.data.statuses).filter(s => s === "been").length} visited · ${Object.values(store.data.statuses).filter(s => s === "fav").length} favorites`;
+}
+render();
+
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
