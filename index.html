@@ -178,10 +178,12 @@ const CATS = {
   club:       { label: "Clubs",          emoji: "🪩", color: "#7b4fa5" },
   restaurant: { label: "Restaurants",    emoji: "🍝", color: "#b8452f" },
   street:     { label: "Street food",    emoji: "🌭", color: "#d0763a" },
+  dessert:    { label: "Dessert",        emoji: "🍦", color: "#c96f95" },
   museum:     { label: "Museums & Art",  emoji: "🖼️", color: "#2e7d7b" },
   sight:      { label: "Sights",         emoji: "🏛️", color: "#5a7a4f" },
   stage:      { label: "Stage & Screen", emoji: "🎭", color: "#a5486d" },
   shop:       { label: "Shops & Books",  emoji: "🛍️", color: "#587a8a" },
+  work:       { label: "Good to work",   emoji: "💻", color: "#46698f" },
   trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
@@ -280,15 +282,15 @@ function renderMap() {
   markers = [];
   for (const p of filtered()) {
     const st = store.status(p.id);
-    const visited = st === "beenplus" || st === "beenminus";
     const c0 = CATS[effCats(p)[0]];
-    const m = L.circleMarker([p.lat, p.lng], {
-      radius: st === "fav" ? 9 : 7,
-      color: visited ? "#9aa3ad" : c0.color,
-      fillColor: visited ? "#9aa3ad" : c0.color,
-      fillOpacity: st === "beenminus" ? 0.2 : visited ? 0.45 : 0.85,
-      weight: st === "fav" ? 3 : 1.5,
-    }).addTo(map);
+    // want: plain category color · been👍: category color with green ring ·
+    // been👎: ghost gray · fav: bigger, bold ring
+    const opts =
+      st === "beenminus" ? { radius: 6, color: "#9aa3ad", fillColor: "#9aa3ad", fillOpacity: 0.2, weight: 1 } :
+      st === "beenplus"  ? { radius: 7, color: "#3f9b57", fillColor: c0.color, fillOpacity: 0.75, weight: 2.5 } :
+      st === "fav"       ? { radius: 9, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 3 } :
+                           { radius: 7, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 1.5 };
+    const m = L.circleMarker([p.lat, p.lng], opts).addTo(map);
     m.bindPopup(`<b>${esc(p.name)}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
@@ -513,7 +515,7 @@ const MOODS = {
   drinks:  { label: "🍷 Drinks",         cats: ["wine", "bar", "jazz"] },
   music:   { label: "🎶 Live music",     cats: ["jazz", "club"] },
   dinner:  { label: "🍝 Dinner",         cats: ["restaurant", "street"] },
-  coffee:  { label: "☕ Coffee & cake",  cats: ["cafe", "bakery"] },
+  coffee:  { label: "☕ Coffee & cake",  cats: ["cafe", "bakery", "dessert"] },
   culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop"] },
   away:    { label: "🌊 Out of town",    cats: ["trip"] },
 };
