@@ -66,7 +66,8 @@
     border: 1.5px solid var(--line); color: var(--muted); background: none; cursor: pointer;
   }
   .badge.want { border-color: var(--want); color: var(--want); }
-  .badge.been { border-color: var(--been); color: var(--been); }
+  .badge.beenplus  { border-color: var(--been); color: var(--been); }
+  .badge.beenminus { border-color: var(--muted); color: var(--muted); }
   .badge.fav  { border-color: var(--fav);  color: var(--fav); }
   #tonight { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 18px; text-align: center; overflow-y: auto; }
   #tonight .card {
@@ -112,7 +113,8 @@
   .statusseg { display: flex; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 4px; }
   .statusseg button { flex: 1; padding: 9px 4px; background: none; border: none; color: var(--muted); font-size: 13.5px; cursor: pointer; }
   .statusseg button.on.want { background: var(--want); color: #fff; }
-  .statusseg button.on.been { background: var(--been); color: #fff; }
+  .statusseg button.on.beenplus  { background: var(--been); color: #fff; }
+  .statusseg button.on.beenminus { background: var(--muted); color: #fff; }
   .statusseg button.on.fav  { background: var(--fav);  color: #fff; }
   .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 15px; }
@@ -181,7 +183,7 @@ const CATS = {
   trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
-const STATUSES = { want: "Want to go", been: "Been", fav: "❤️ Favorite" };
+const STATUSES = { want: "Want to go", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
 
 const store = {
   data: JSON.parse(localStorage.getItem("cphPlacesState") || "{}"),
@@ -196,6 +198,11 @@ store.data.statuses ||= {};
 store.data.notes ||= {};
 store.data.cats ||= {};    // per-place category overrides
 store.data.custom ||= [];  // places added in-app
+// Legacy migration: plain "been" predates the liked/disliked split.
+if (Object.values(store.data.statuses).includes("been")) {
+  for (const [k, v] of Object.entries(store.data.statuses)) if (v === "been") store.data.statuses[k] = "beenplus";
+  store.save();
+}
 
 function allPlaces() { return PLACES.concat(store.data.custom); }
 function byId(id) { return allPlaces().find(x => x.id === id); }
@@ -260,12 +267,14 @@ function renderMap() {
   markers = [];
   for (const p of filtered()) {
     const st = store.status(p.id);
+    const visited = st === "beenplus" || st === "beenminus";
     const c0 = CATS[effCats(p)[0]];
     const m = L.circleMarker([p.lat, p.lng], {
       radius: st === "fav" ? 9 : 7,
-      color: st === "been" ? "#9aa3ad" : c0.color,
-      fillColor: st === "been" ? "#9aa3ad" : c0.color,
-      fillOpacity: st === "been" ? 0.4 : 0.85, weight: st === "fav" ? 3 : 1.5,
+      color: visited ? "#9aa3ad" : c0.color,
+      fillColor: visited ? "#9aa3ad" : c0.color,
+      fillOpacity: st === "beenminus" ? 0.2 : visited ? 0.45 : 0.85,
+      weight: st === "fav" ? 3 : 1.5,
     }).addTo(map);
     m.bindPopup(`<b>${esc(p.name)}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
@@ -287,7 +296,7 @@ function renderList() {
       <span class="tx"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
-    badge.textContent = st === "want" ? "Want" : st === "been" ? "Been" : "❤️";
+    badge.textContent = { want: "Want", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
     badge.onclick = (e) => { e.stopPropagation(); cycleStatus(p.id); };
     div.appendChild(badge);
     div.onclick = () => openSheet(p.id);
@@ -296,8 +305,8 @@ function renderList() {
   if (!items.length) el.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:40px">Nothing matches — clear some filters.</p>';
 }
 function cycleStatus(id) {
-  const order = ["want", "been", "fav"];
-  const next = order[(order.indexOf(store.status(id)) + 1) % 3];
+  const order = ["want", "beenplus", "beenminus", "fav"];
+  const next = order[(order.indexOf(store.status(id)) + 1) % order.length];
   store.setStatus(id, next);
   render();
 }
@@ -463,7 +472,8 @@ buildMoodChips();
 document.getElementById("roll").onclick = () => {
   // Mood spans several categories and skips places already visited; favorites count double.
   const inMood = p => mood ? effCats(p).some(c => MOODS[mood].cats.includes(c)) : !effCats(p).includes("other");
-  let pool = allPlaces().filter(p => inMood(p) && store.status(p.id) !== "been");
+  const visited = id => ["beenplus", "beenminus"].includes(store.status(id));
+  let pool = allPlaces().filter(p => inMood(p) && !visited(p.id));
   if (!pool.length) pool = allPlaces().filter(inMood);
   if (!pool.length) return;
   const weighted = pool.flatMap(p => store.status(p.id) === "fav" ? [p, p] : [p]);
@@ -513,8 +523,9 @@ function render() {
   renderMap();
   renderList();
   const n = filtered().length;
+  const sv = Object.values(store.data.statuses);
   document.getElementById("counts").textContent =
-    `${n} of ${allPlaces().length} places · ${Object.values(store.data.statuses).filter(s => s === "been").length} visited · ${Object.values(store.data.statuses).filter(s => s === "fav").length} favorites`;
+    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} ❤️`;
 }
 render();
 
