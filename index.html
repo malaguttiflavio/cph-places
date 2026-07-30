@@ -127,10 +127,11 @@
   <div class="view" id="listview"></div>
   <div class="view" id="tonightview">
     <div id="tonight">
+      <div class="chiprow" id="moodchips" style="justify-content:center;flex-wrap:wrap;overflow:visible;"></div>
       <div class="card" id="tcard">
         <div class="cat">🎲</div>
         <h2>Where to tonight?</h2>
-        <div class="sub">Uses your active filters — e.g. tap 🍷 Wine + Want to go, then roll.</div>
+        <div class="sub">Pick a mood and roll — I'll only suggest places you haven't been.</div>
       </div>
       <button class="btn" id="roll">Surprise me</button>
       <div class="row" style="margin-top:18px; display:flex; gap:8px;">
@@ -300,14 +301,43 @@ function openSheet(id) {
 function closeSheet() { document.getElementById("sheetwrap").classList.remove("on"); render(); }
 
 // ----- tonight -----
+const MOODS = {
+  drinks:  { label: "🍷 Drinks",         cats: ["wine", "bar", "jazz"] },
+  music:   { label: "🎶 Live music",     cats: ["jazz", "club"] },
+  dinner:  { label: "🍝 Dinner",         cats: ["restaurant", "street"] },
+  coffee:  { label: "☕ Coffee & cake",  cats: ["cafe", "bakery"] },
+  culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop"] },
+  away:    { label: "🌊 Out of town",    cats: ["trip"] },
+};
+// Time-aware default: mornings suggest coffee, afternoons culture, evenings dinner, nights drinks.
+function defaultMood() {
+  const h = new Date().getHours();
+  if (h < 11) return "coffee";
+  if (h < 16) return "culture";
+  if (h < 20) return "dinner";
+  return "drinks";
+}
+let mood = defaultMood();
+function buildMoodChips() {
+  const el = document.getElementById("moodchips");
+  el.innerHTML = "";
+  for (const [k, m] of Object.entries(MOODS)) {
+    el.appendChild(mkChip(m.label, () => { mood = mood === k ? null : k; buildMoodChips(); }, mood === k));
+  }
+}
+buildMoodChips();
 document.getElementById("roll").onclick = () => {
-  let pool = filtered().filter(p => store.status(p.id) !== "been" && p.cat !== "other");
-  if (!pool.length) pool = filtered();
+  // Mood spans several categories and skips places already visited; favorites count double.
+  let pool = PLACES.filter(p =>
+    (mood ? MOODS[mood].cats.includes(p.cat) : p.cat !== "other") &&
+    store.status(p.id) !== "been");
+  if (!pool.length) pool = PLACES.filter(p => !mood || MOODS[mood].cats.includes(p.cat));
   if (!pool.length) return;
-  const p = pool[Math.floor(Math.random() * pool.length)];
+  const weighted = pool.flatMap(p => store.status(p.id) === "fav" ? [p, p] : [p]);
+  const p = weighted[Math.floor(Math.random() * weighted.length)];
   const c = document.getElementById("tcard");
   c.innerHTML = `<div class="cat">${CATS[p.cat].emoji}</div><h2>${esc(p.name)}</h2>
-    <div class="sub">${CATS[p.cat].label} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}<br>${esc(effNote(p))}</div>
+    <div class="sub">${CATS[p.cat].label} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
     <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
 };
 
