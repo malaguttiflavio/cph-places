@@ -103,7 +103,7 @@ const PLACES = [
   { id: "p99", name: "Original Coffee", cat: "cafe", area: "Frederiksberg", address: "Gl. Kongevej 173, 1850 Frederiksberg", lat: 55.6779977, lng: 12.534414, rating: 4.2, price: "1–100 kr", note: "" },
   { id: "p100", name: "Dosa Bar", cat: "restaurant", area: "Frederiksberg", address: "Gl. Kongevej 171A, 1850 Frederiksberg", lat: 55.677937, lng: 12.5346153, rating: 4.3, price: "200–300 kr", note: "South Indian" },
   { id: "p101", name: "Aveny-T", cat: "stage", area: "Frederiksberg", address: "Frederiksberg Allé 102, 1820 Frederiksberg", lat: 55.6748998, lng: 12.5330329, rating: 4.2, note: "Theater" },
-  { id: "p102", name: "Louisiana Museum of Modern Art", cat: "museum", area: "Humlebæk", address: "Gl Strandvej 13, 3050 Humlebæk", lat: 55.969549, lng: 12.542784, rating: 4.6, note: "Day trip — 35 min train to Humlebæk" },
+  { id: "p102", name: "Louisiana Museum of Modern Art", cat: "trip", area: "Humlebæk", address: "Gl Strandvej 13, 3050 Humlebæk", lat: 55.969549, lng: 12.542784, rating: 4.6, note: "Modern art museum — 35 min train to Humlebæk" },
   { id: "p103", name: "Cafe Væksthuset", cat: "cafe", area: "Frederiksberg Have", address: "Grønnegårdsvej 15, 1870 Frederiksberg", lat: 55.680929, lng: 12.540539, rating: 4.0, price: "1–100 kr", note: "In the Frederiksberg Gardens greenhouse" },
   { id: "p104", name: "Dropped pin (South Africa?)", cat: "other", area: "Outside Denmark", address: "Near Ncambele, South Africa", lat: -30.4096414, lng: 29.6589319, note: "Stray pin from Maps list — probably delete" },
   { id: "p105", name: "Department of Economics (KU)", cat: "other", area: "Indre By", address: "Øster Farimagsgade 5, København", lat: 55.689149, lng: 12.570601, note: "" },
