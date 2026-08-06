@@ -393,6 +393,9 @@ function openAddSheet() {
     <h2>＋ Add a place</h2>
     <p class="lbl">Paste a Google Maps link and everything fills in itself</p>
     <input type="text" id="np-link" placeholder="e.g. https://maps.app.goo.gl/…">
+    <div class="hint">A full <b>google.com/maps/place/…</b> URL imports instantly. Short
+      <b>goo.gl</b> links need a relay service, which is often down — if it fails, open the link in
+      Safari first and copy the full URL from the address bar.</div>
     <div class="row"><button class="btn ghost" id="np-import">✨ Import from link</button></div>
     <div class="hint" id="np-importmsg"></div>
     <p class="lbl">Name</p>
@@ -424,11 +427,51 @@ function openAddSheet() {
       b.classList.toggle("on");
     };
   });
+  // Pull whatever a Google Maps URL already contains, without any network call.
+  function parseMapsUrl(u) {
+    let name = null, coords = null;
+    const mPlace = u.match(/\/maps\/place\/([^\/@?"'\\]+)/);
+    if (mPlace) { try { name = decodeURIComponent(mPlace[1].replace(/\+/g, " ")); } catch { name = mPlace[1]; } }
+    if (/^\d+ /.test(name || "")) name = null;             // "48 Århusgade" is an address, not a name
+    const mPin = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);   // the exact pin
+    const mAt = u.match(/[@?](?:.*[&?])?(?:ll=)?(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/); // map centre
+    const mQ = u.match(/[?&]q=(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/);
+    const m = mPin || mQ || mAt;
+    if (m) coords = { lat: +m[1], lng: +m[2] };
+    return { name, coords };
+  }
+
+  async function reverseGeocode(sheet, c) {
+    try {
+      const ctl = new AbortController(); setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${c.lat}&lon=${c.lng}`, { signal: ctl.signal });
+      const a = (await r.json()).address || {};
+      const street = [a.road, a.house_number].filter(Boolean).join(" ");
+      const addr = [street, [a.postcode, a.city || a.town || a.village].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+      const addrEl = sheet.querySelector("#np-addr"), areaEl = sheet.querySelector("#np-area");
+      if (addr && !addrEl.value) addrEl.value = addr;
+      const hood = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.city || "";
+      if (hood && !areaEl.value) areaEl.value = hood;
+    } catch { /* address stays manual */ }
+  }
+
   sheet.querySelector("#np-import").onclick = async () => {
     const msgEl = sheet.querySelector("#np-importmsg");
     const raw = sheet.querySelector("#np-link").value.trim();
     const url = (raw.match(/https?:\/\/\S+/) || [])[0];
     if (!url) { msgEl.textContent = "Paste a Google Maps link first"; return; }
+
+    // A full maps.google.com URL already carries the name and coordinates, so it
+    // can be parsed offline. Only short goo.gl links need resolving.
+    const direct = parseMapsUrl(decodeURIComponent(url));
+    if (direct.coords) {
+      if (direct.name) sheet.querySelector("#np-name").value = direct.name;
+      coords = direct.coords;
+      locEl.textContent = "✓ Location read straight from the link";
+      msgEl.textContent = `✓ Imported${direct.name ? ": " + direct.name : ""} — pick categories and save`;
+      await reverseGeocode(sheet, coords);
+      return;
+    }
     // Google blocks cross-site reads, so resolve the link through CORS relays.
     // Free relays are flaky: race them all in parallel, first usable answer wins.
     const relays = [
@@ -450,7 +493,15 @@ function openAddSheet() {
       msgEl.textContent = round === 1 ? "Importing… (a few seconds)" : "Importing… (retrying)";
       try { html = await Promise.any(relays.map(tryRelay)); break; } catch { /* next round */ }
     }
-    if (!html) { msgEl.textContent = "Couldn't reach Google Maps right now — try again, or use Find address below"; return; }
+    if (!html) {
+      // The free relays are frequently down. The reliable escape hatch is to let
+      // Safari expand the short link, then paste the full URL — which parses offline.
+      msgEl.innerHTML = "Couldn't expand the short link (the free relay services are down). " +
+        "<b>Workaround:</b> open the link in Safari, wait for the map to load, then copy the full " +
+        "URL from the address bar and paste that here — it imports instantly with no relay needed. " +
+        "Or just type the name and tap 🔍 Find address.";
+      return;
+    }
     let name = null, coords2 = null;
     const mPlace = html.match(/\/maps\/place\/([^\/@"'\\]+)/);
     if (mPlace) { try { name = decodeURIComponent(mPlace[1].replace(/\+/g, " ")); } catch { name = mPlace[1]; } }
