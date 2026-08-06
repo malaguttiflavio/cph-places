@@ -102,7 +102,7 @@
   }
   #sheet h2 { margin: 0 0 2px; font-size: 20px; }
   #sheet .sub { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
-  #sheet textarea, #sheet input[type=text] {
+  #sheet textarea, #sheet input[type=text], #sheet select {
     width: 100%; border: 1px solid var(--line); border-radius: 10px;
     background: var(--bg); color: var(--ink); padding: 9px; font: inherit; font-size: 14.5px;
   }
@@ -191,6 +191,47 @@ const CATS = {
 };
 const STATUSES = { want: "Want to go", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
 
+// Canonical neighbourhoods. Keeping this list closed is what stops the area filter
+// fragmenting into "Indre Østerbro", "Kødbyen", "Nørrevold" and so on.
+const AREAS = [
+  "Indre By", "Vesterbro", "Nørrebro", "Østerbro", "Frederiksberg",
+  "Christianshavn", "Christiania", "Refshaleøen", "Amager", "Islands Brygge",
+  "Nordhavn", "Sydhavn", "Valby", "Vanløse", "Brønshøj", "Hellerup",
+  "Out of town",
+];
+
+// Whatever OpenStreetMap or Google calls a place → one of the above.
+const AREA_ALIASES = {
+  "indre østerbro": "Østerbro", "ydre østerbro": "Østerbro", "østerbro": "Østerbro",
+  "indre nørrebro": "Nørrebro", "ydre nørrebro": "Nørrebro", "nørrebro": "Nørrebro",
+  "indre vesterbro": "Vesterbro", "ydre vesterbro": "Vesterbro", "vesterbro": "Vesterbro",
+  "vesterbro-kongens enghave": "Vesterbro", "kødbyen": "Vesterbro", "havneringen": "Vesterbro",
+  "nørrevold": "Indre By", "vestervold": "Indre By", "østervold": "Indre By",
+  "gammelholm": "Indre By", "frederiksstaden": "Indre By", "slotsholmen": "Indre By",
+  "the lakes": "Indre By", "søerne": "Indre By", "indre by": "Indre By",
+  "københavn": "Indre By", "copenhagen": "Indre By", "kongens nytorv": "Indre By",
+  "frederiksberg": "Frederiksberg", "frederiksberg have": "Frederiksberg",
+  "værnedamsvej": "Frederiksberg", "frederiksberg c": "Frederiksberg",
+  "holmen": "Christianshavn", "christianshavn": "Christianshavn",
+  "amagerbro": "Amager", "amager vest": "Amager", "amager øst": "Amager",
+  "sundbyøster": "Amager", "sundbyvester": "Amager", "ørestad": "Amager",
+  "islands brygge": "Islands Brygge", "kongens enghave": "Sydhavn",
+};
+
+// Map a raw place name onto the canonical list; null when there is no confident match.
+function normalizeArea(raw) {
+  if (!raw) return null;
+  const k = String(raw).trim().toLowerCase();
+  if (AREA_ALIASES[k]) return AREA_ALIASES[k];
+  const exact = AREAS.find(a => a.toLowerCase() === k);
+  if (exact) return exact;
+  // "Indre Østerbro, København" style strings — match on any contained area name.
+  const contained = AREAS.find(a => k.includes(a.toLowerCase()));
+  if (contained) return contained;
+  const alias = Object.keys(AREA_ALIASES).find(a => k.includes(a));
+  return alias ? AREA_ALIASES[alias] : null;
+}
+
 const store = {
   data: JSON.parse(localStorage.getItem("cphPlacesState") || "{}"),
   save() { localStorage.setItem("cphPlacesState", JSON.stringify(this.data)); syncPushSoon(); },
@@ -203,6 +244,7 @@ const store = {
 store.data.statuses ||= {};
 store.data.notes ||= {};
 store.data.cats ||= {};    // per-place category overrides
+store.data.areas ||= {};   // per-place neighbourhood overrides
 store.data.custom ||= [];  // places added in-app
 store.data.hidden ||= [];  // stock places the user deleted
 // Legacy migration: plain "been" predates the liked/disliked split.
@@ -213,6 +255,15 @@ if (Object.values(store.data.statuses).includes("been")) {
 
 function allPlaces() { return PLACES.filter(p => !store.data.hidden.includes(p.id)).concat(store.data.custom); }
 function byId(id) { return allPlaces().find(x => x.id === id); }
+function effArea(p) {
+  const o = store.data.areas[p.id];
+  return o || normalizeArea(p.area) || p.area || "Indre By";
+}
+function setArea(p, area) {
+  if (p.id.startsWith("c")) p.area = area;      // custom place: edit in place
+  else store.data.areas[p.id] = area;           // stock place: override
+  store.save();
+}
 function effCats(p) {
   const o = store.data.cats[p.id];
   const c = (o && o.length) ? o : p.cats;
@@ -229,11 +280,11 @@ let catFilter = null, statusFilter = null, areaFilter = null, query = "";
 
 function matches(p) {
   if (catFilter && !effCats(p).includes(catFilter)) return false;
-  if (areaFilter && p.area !== areaFilter) return false;
+  if (areaFilter && effArea(p) !== areaFilter) return false;
   if (statusFilter && store.status(p.id) !== statusFilter) return false;
   if (query) {
     const q = query.toLowerCase();
-    const hay = (p.name + " " + p.area + " " + (p.address || "") + " " + effNote(p) + " " +
+    const hay = (p.name + " " + effArea(p) + " " + (p.address || "") + " " + effNote(p) + " " +
       effCats(p).map(c => CATS[c].label).join(" ")).toLowerCase();
     if (!hay.includes(q)) return false;
   }
@@ -253,7 +304,7 @@ function buildChips() {
   ac.innerHTML = "";
   ac.appendChild(mkChip("All areas", () => { areaFilter = null; render(); }, areaFilter === null));
   const areaCounts = {};
-  for (const p of allPlaces()) areaCounts[p.area] = (areaCounts[p.area] || 0) + 1;
+  for (const p of allPlaces()) areaCounts[effArea(p)] = (areaCounts[effArea(p)] || 0) + 1;
   const areas = Object.keys(areaCounts).sort((a, b) => areaCounts[b] - areaCounts[a] || a.localeCompare(b));
   for (const a of areas) {
     ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => { areaFilter = areaFilter === a ? null : a; render(); }, areaFilter === a));
@@ -308,7 +359,7 @@ function renderList() {
     const cats = effCats(p);
     const div = document.createElement("div");
     div.className = "item";
-    const sub = [cats.map(c => CATS[c].emoji).join("") + " " + p.area, p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
+    const sub = [cats.map(c => CATS[c].emoji).join("") + " " + effArea(p), p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
     div.innerHTML = `<span class="dot" style="background:${CATS[cats[0]].color}"></span>
       <span class="tx"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
@@ -339,7 +390,7 @@ function openSheet(id) {
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
   sheet.innerHTML = `
     <h2>${CATS[cats[0]].emoji} ${esc(p.name)}</h2>
-    <div class="sub">${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
+    <div class="sub">${esc(effArea(p))}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
     <div class="statusseg">
       ${Object.entries(STATUSES).map(([k, lab]) =>
         `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
@@ -349,6 +400,10 @@ function openSheet(id) {
       ${Object.entries(CATS).map(([k, c]) =>
         `<button class="chip${cats.includes(k) ? " on" : ""}" data-c="${k}">${c.emoji} ${c.label}</button>`).join("")}
     </div>
+    <p class="lbl">Neighbourhood</p>
+    <select id="areaedit">
+      ${AREAS.map(a => `<option value="${esc(a)}"${a === effArea(p) ? " selected" : ""}>${esc(a)}</option>`).join("")}
+    </select>
     <p class="lbl">My note</p>
     <textarea id="noteedit" placeholder="Who recommended it, what to order, date-worthy?…">${esc(effNote(p))}</textarea>
     <div class="row">
@@ -368,6 +423,7 @@ function openSheet(id) {
       openSheet(id); render();
     };
   });
+  sheet.querySelector("#areaedit").onchange = (e) => { setArea(p, e.target.value); render(); };
   sheet.querySelector("#noteedit").oninput = (e) => store.setNote(id, e.target.value);
   sheet.querySelector("#closesheet").onclick = closeSheet;
   sheet.querySelector("#delplace").onclick = () => {
@@ -411,8 +467,11 @@ function openAddSheet() {
       <button class="btn ghost" id="np-here">📍 I'm there now</button>
     </div>
     <div class="hint" id="np-loc">No location yet</div>
-    <p class="lbl">Area / neighborhood (optional)</p>
-    <input type="text" id="np-area" placeholder="e.g. Østerbro">
+    <p class="lbl">Neighbourhood</p>
+    <select id="np-area">
+      <option value="">— pick one —</option>
+      ${AREAS.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("")}
+    </select>
     <p class="lbl">Note (optional)</p>
     <textarea id="np-note" placeholder="Why is it on the list?"></textarea>
     <div class="row">
@@ -450,8 +509,10 @@ function openAddSheet() {
       const addr = [street, [a.postcode, a.city || a.town || a.village].filter(Boolean).join(" ")].filter(Boolean).join(", ");
       const addrEl = sheet.querySelector("#np-addr"), areaEl = sheet.querySelector("#np-area");
       if (addr && !addrEl.value) addrEl.value = addr;
-      const hood = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.city || "";
-      if (hood && !areaEl.value) areaEl.value = hood;
+      // Try each level OSM offers, narrowest first, until one maps onto the canonical list.
+      const guess = [a.suburb, a.neighbourhood, a.quarter, a.city_district, a.city, a.town, a.municipality]
+        .map(normalizeArea).find(Boolean);
+      if (guess && !areaEl.value) areaEl.value = guess;
     } catch { /* address stays manual */ }
   }
 
@@ -525,8 +586,9 @@ function openAddSheet() {
         const cityline = [a.postcode, a.city || a.town || a.village].filter(Boolean).join(" ");
         const addr = [street, cityline].filter(Boolean).join(", ");
         if (addr && !sheet.querySelector("#np-addr").value) sheet.querySelector("#np-addr").value = addr;
-        const hood = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.city || "";
-        if (hood && !sheet.querySelector("#np-area").value) sheet.querySelector("#np-area").value = hood;
+        const guess = [a.suburb, a.neighbourhood, a.quarter, a.city_district, a.city, a.town, a.municipality]
+          .map(normalizeArea).find(Boolean);
+        if (guess && !sheet.querySelector("#np-area").value) sheet.querySelector("#np-area").value = guess;
       } catch { /* address stays manual */ }
     }
   };
@@ -558,7 +620,7 @@ function openAddSheet() {
       id: "c" + Date.now(),
       name,
       cats: newCats.length ? newCats : ["other"],
-      area: sheet.querySelector("#np-area").value.trim() || "Copenhagen",
+      area: sheet.querySelector("#np-area").value.trim() || "Indre By",
       address: sheet.querySelector("#np-addr").value.trim(),
       lat: coords.lat, lng: coords.lng,
       note: sheet.querySelector("#np-note").value.trim(),
@@ -607,7 +669,7 @@ document.getElementById("roll").onclick = () => {
   const p = weighted[Math.floor(Math.random() * weighted.length)];
   const c = document.getElementById("tcard");
   c.innerHTML = `<div class="cat">${CATS[effCats(p)[0]].emoji}</div><h2>${esc(p.name)}</h2>
-    <div class="sub">${effCats(p).map(x => CATS[x].label).join(" · ")} · ${esc(p.area)}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
+    <div class="sub">${effCats(p).map(x => CATS[x].label).join(" · ")} · ${esc(effArea(p))}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
     <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
 };
 
@@ -675,6 +737,7 @@ function mergeStates(remote, local) {
     statuses: { ...remote.statuses, ...local.statuses },
     notes: { ...remote.notes, ...local.notes },
     cats: { ...remote.cats, ...local.cats },
+    areas: { ...(remote.areas || {}), ...(local.areas || {}) },
     custom: [...remote.custom, ...local.custom.filter(l => !remote.custom.some(x => x.id === l.id))],
     hidden: [...new Set([...(remote.hidden || []), ...(local.hidden || [])])],
   };
@@ -753,7 +816,7 @@ document.getElementById("importfile").onchange = (e) => {
   f.text().then(t => {
     try {
       store.data = JSON.parse(t);
-      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.custom ||= []; store.data.hidden ||= [];
+      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.areas ||= {}; store.data.custom ||= []; store.data.hidden ||= [];
       store.save(); render(); alert("Imported ✓");
     }
     catch { alert("Not a valid backup file"); }

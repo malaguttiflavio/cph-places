@@ -21,7 +21,7 @@ const PLACES = [
   { id: "p17", name: "Møns Klint", cats: ["trip"], area: "Out of town", address: "4791 Borre", lat: 54.9657301, lng: 12.5505826, rating: 4.8, note: "White chalk cliffs" },
   { id: "p18", name: "Cork Vinbar", cats: ["wine"], area: "Frederiksberg", address: "Henrik Steffens Vej 2, 1866 Frederiksberg", lat: 55.677525, lng: 12.5381461, rating: 4.5, price: "200–300 kr", note: "Wine bar" },
   { id: "p19", name: "Dropped pin (Frederiksberg)", cats: ["other"], area: "Frederiksberg", address: "2000 Frederiksberg", lat: 55.6739899, lng: 12.5236993, note: "Unlabeled pin from Maps list" },
-  { id: "p20", name: "Søpavillonen", cats: ["club"], area: "The Lakes", address: "Gyldenløvesgade 24, 1369 København", lat: 55.6818644, lng: 12.5591526, rating: 3.6, note: "Lakeside pavilion / nightclub" },
+  { id: "p20", name: "Søpavillonen", cats: ["club"], area: "Indre By", address: "Gyldenløvesgade 24, 1369 København", lat: 55.6818644, lng: 12.5591526, rating: 3.6, note: "Lakeside pavilion / nightclub" },
   { id: "p21", name: "Toldboden", cats: ["restaurant"], area: "Østerbro", address: "Nordre Toldbod 18-24, 1259 København", lat: 55.6896711, lng: 12.5998306, rating: 3.9, price: "200–600 kr", note: "Seaside venue near Kastellet" },
   { id: "p22", name: "Betty Nansen Teatret", cats: ["stage"], area: "Frederiksberg", address: "Frederiksberg Allé 57, 1820 Frederiksberg", lat: 55.674006, lng: 12.5369794, note: "Theater" },
   { id: "p23", name: "Acem Meditation", cats: ["other"], area: "Frederiksberg", address: "Kochsvej 26, 1812 Frederiksberg", lat: 55.6717766, lng: 12.537125, note: "Meditation center" },
