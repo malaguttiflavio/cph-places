@@ -181,6 +181,7 @@ const CATS = {
   restaurant: { label: "Restaurants",    emoji: "🍝", color: "#b8452f" },
   street:     { label: "Street food",    emoji: "🌭", color: "#d0763a" },
   dessert:    { label: "Dessert",        emoji: "🍦", color: "#c96f95" },
+  date:       { label: "Date spots",     emoji: "💞", color: "#d64573" },
   museum:     { label: "Museums & Art",  emoji: "🖼️", color: "#2e7d7b" },
   sight:      { label: "Sights",         emoji: "🏛️", color: "#5a7a4f" },
   stage:      { label: "Stage & Screen", emoji: "🎭", color: "#a5486d" },
@@ -645,6 +646,7 @@ const MOODS = {
   music:   { label: "🎶 Live music",     cats: ["jazz", "club"] },
   dinner:  { label: "🍝 Dinner",         cats: ["restaurant", "street"] },
   coffee:  { label: "☕ Coffee & cake",  cats: ["cafe", "bakery", "dessert"] },
+  date:    { label: "💞 Date night",     cats: ["date"] },
   culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop"] },
   away:    { label: "🌊 Out of town",    cats: ["trip"] },
 };
@@ -764,7 +766,8 @@ function openSyncSheet() {
       <button class="btn danger" id="syncoff">Disconnect this device</button>
     </div>` : `
     <h2>☁️ Set up device sync</h2>
-    <div class="sub">Syncs your data across devices through a private GitHub repo. One-time setup per device:</div>
+    <div class="sub">Syncs your data across devices through a private GitHub repo. One-time setup per device.
+      If this device lost its data (or its token), reconnecting restores everything from the cloud.</div>
     <p class="lbl">1 — Create an access token (once, on any device)</p>
     <div class="hint">Open <b>github.com/settings/personal-access-tokens/new</b> · name it e.g. "cph-sync" · set Expiration to 1 year · under Repository access choose <b>Only select repositories → cph-places-data</b> · under Permissions set <b>Contents → Read and write</b> · Generate and copy it.</div>
     <p class="lbl">2 — Paste the token here</p>
