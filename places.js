@@ -139,4 +139,5 @@ const PLACES = [
   { id: "p135", name: "Jumbo Bakery & Eatery", cats: ["bakery"], area: "Out of town", address: "Værkmestergade, 8000 Aarhus", lat: 56.1479928, lng: 10.1887940, note: "Aarhus pastry destination — for a Jutland trip." },
   { id: "p136", name: "Vesterports Bageri", cats: ["bakery"], area: "Out of town", address: "Vestergade 6, 5600 Faaborg", lat: 55.0963950, lng: 10.2410390, note: "Named Denmark's best bakery 2021 — Faaborg, Fyn." },
   { id: "p137", name: "Tír Bakery", cats: ["bakery"], area: "Out of town", address: "Smidsholmvej, Hønsinge Lyng, 4560 Vig", lat: 55.8649259, lng: 11.5345924, note: "Countryside bakery in Odsherred, NW Zealand — weekend-trip territory." },
+  { id: "p138", name: "Lago", cats: ["wine", "restaurant"], area: "Nørrebro", address: "Korsgade 1 (Peblinge Dossering), 2200 København", lat: 55.6844665, lng: 12.5595205, note: "Natural wine bar & restaurant by the lakes — Tue–Sat from 4 PM, walk-ins." },
 ];

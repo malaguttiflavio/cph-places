@@ -538,16 +538,20 @@ function openAddSheet() {
     }
     // Google blocks cross-site reads, so resolve the link through CORS relays.
     // Free relays are flaky: race them all in parallel, first usable answer wins.
+    // r.jina.ai is the one that reliably answers, but its default markdown output
+    // of the Maps page is just "enable JavaScript" — asking for raw HTML returns the
+    // redirected page, whose URL and meta tags carry the name and coordinates.
     const relays = [
-      u => "https://r.jina.ai/" + u,
-      u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
-      u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
-      u => "https://api.codetabs.com/v1/proxy?quest=" + u,
+      u => ({ url: "https://r.jina.ai/" + u, headers: { "X-Return-Format": "html", "X-No-Cache": "true" } }),
+      u => ({ url: "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) }),
+      u => ({ url: "https://corsproxy.io/?url=" + encodeURIComponent(u) }),
+      u => ({ url: "https://api.codetabs.com/v1/proxy?quest=" + u }),
     ];
     const timeoutSignal = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
     const usable = t => t.includes("/maps/place/") || /!3d-?\d+\.\d+!4d-?\d+\.\d+/.test(t);
     const tryRelay = async (mk) => {
-      const r = await fetch(mk(url), { signal: timeoutSignal(12000) });
+      const { url: relayUrl, headers } = mk(url);
+      const r = await fetch(relayUrl, { headers: headers || {}, signal: timeoutSignal(12000) });
       const t = await r.text();
       if (!r.ok || !usable(t)) throw new Error("unusable");
       return t;
