@@ -101,6 +101,8 @@
     max-height: 85%; overflow-y: auto;
   }
   #sheet h2 { margin: 0 0 2px; font-size: 20px; }
+  #sheet h2.editable { cursor: pointer; }
+  #sheet h2 .pen { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 6px; }
   #sheet .sub { color: var(--muted); font-size: 14px; margin-bottom: 10px; }
   #sheet textarea, #sheet input[type=text], #sheet select {
     width: 100%; border: 1px solid var(--line); border-radius: 10px;
@@ -181,11 +183,12 @@ const CATS = {
   restaurant: { label: "Restaurants",    emoji: "🍝", color: "#b8452f" },
   street:     { label: "Street food",    emoji: "🌭", color: "#d0763a" },
   dessert:    { label: "Dessert",        emoji: "🍦", color: "#c96f95" },
-  date:       { label: "Date spots",     emoji: "💞", color: "#d64573" },
+  date:       { label: "Date",           emoji: "💞", color: "#d64573" },
   museum:     { label: "Museums & Art",  emoji: "🖼️", color: "#2e7d7b" },
   sight:      { label: "Sights",         emoji: "🏛️", color: "#5a7a4f" },
   stage:      { label: "Stage & Screen", emoji: "🎭", color: "#a5486d" },
-  shop:       { label: "Shops & Books",  emoji: "🛍️", color: "#587a8a" },
+  shop:       { label: "Shops",          emoji: "🛍️", color: "#587a8a" },
+  books:      { label: "Books",          emoji: "📚", color: "#6d597a" },
   grocery:    { label: "Groceries",      emoji: "🥬", color: "#7fa331" },
   work:       { label: "Good to work",   emoji: "💻", color: "#46698f" },
   trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
@@ -245,13 +248,18 @@ const store = {
   note(id) { return this.data.notes[id] ?? null; },
   setNote(id, n) { this.data.notes[id] = n; this.save(); },
 };
-// Older backups may miss newer keys.
-store.data.statuses ||= {};
-store.data.notes ||= {};
-store.data.cats ||= {};    // per-place category overrides
-store.data.areas ||= {};   // per-place neighbourhood overrides
-store.data.custom ||= [];  // places added in-app
-store.data.hidden ||= [];  // stock places the user deleted
+// Older backups / remote snapshots may miss newer keys — fill them in wherever state enters.
+function normalizeState(d) {
+  d.statuses ||= {};
+  d.notes ||= {};
+  d.cats ||= {};    // per-place category overrides
+  d.areas ||= {};   // per-place neighbourhood overrides
+  d.names ||= {};   // per-place name overrides
+  d.custom ||= [];  // places added in-app
+  d.hidden ||= [];  // stock places the user deleted
+  return d;
+}
+normalizeState(store.data);
 // Legacy migration: plain "been" predates the liked/disliked split.
 if (Object.values(store.data.statuses).includes("been")) {
   for (const [k, v] of Object.entries(store.data.statuses)) if (v === "been") store.data.statuses[k] = "beenplus";
@@ -280,6 +288,15 @@ function setCats(p, cats) {
   store.save();
 }
 function effNote(p) { const n = store.note(p.id); return n !== null ? n : (p.note || ""); }
+function effName(p) { return store.data.names[p.id] || p.name; }
+function setName(p, name) {
+  name = name.trim();
+  if (!name) return;
+  if (p.id.startsWith("c")) p.name = name;                 // custom place: edit in place
+  else if (name === p.name) delete store.data.names[p.id]; // back to the stock name: drop override
+  else store.data.names[p.id] = name;                      // stock place: override
+  store.save();
+}
 
 let catFilter = null, statusFilter = null, areaFilter = null, query = "";
 
@@ -289,7 +306,7 @@ function matches(p) {
   if (statusFilter && store.status(p.id) !== statusFilter) return false;
   if (query) {
     const q = query.toLowerCase();
-    const hay = (p.name + " " + effArea(p) + " " + (p.address || "") + " " + effNote(p) + " " +
+    const hay = (effName(p) + " " + p.name + " " + effArea(p) + " " + (p.address || "") + " " + effNote(p) + " " +
       effCats(p).map(c => CATS[c].label).join(" ")).toLowerCase();
     if (!hay.includes(q)) return false;
   }
@@ -349,7 +366,7 @@ function renderMap() {
       st === "fav"       ? { radius: 9, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 3 } :
                            { radius: 7, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 1.5 };
     const m = L.circleMarker([p.lat, p.lng], opts).addTo(map);
-    m.bindPopup(`<b>${esc(p.name)}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
+    m.bindPopup(`<b>${esc(effName(p))}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
 }
@@ -358,7 +375,7 @@ function renderMap() {
 function renderList() {
   const el = document.getElementById("listview");
   el.innerHTML = "";
-  const items = filtered().slice().sort((a, b) => a.name.localeCompare(b.name));
+  const items = filtered().slice().sort((a, b) => effName(a).localeCompare(effName(b)));
   for (const p of items) {
     const st = store.status(p.id);
     const cats = effCats(p);
@@ -366,7 +383,7 @@ function renderList() {
     div.className = "item";
     const sub = [cats.map(c => CATS[c].emoji).join("") + " " + effArea(p), p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
     div.innerHTML = `<span class="dot" style="background:${CATS[cats[0]].color}"></span>
-      <span class="tx"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(sub)}</div></span>`;
+      <span class="tx"><div class="nm">${esc(effName(p))}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
     badge.textContent = { want: "Want", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
@@ -394,7 +411,7 @@ function openSheet(id) {
   const sheet = document.getElementById("sheet");
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
   sheet.innerHTML = `
-    <h2>${CATS[cats[0]].emoji} ${esc(p.name)}</h2>
+    <h2 class="editable" id="namerow" title="Tap to rename">${CATS[cats[0]].emoji} <span id="nameview">${esc(effName(p))}</span><span class="pen">✎ rename</span></h2>
     <div class="sub">${esc(effArea(p))}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
     <div class="statusseg">
       ${Object.entries(STATUSES).map(([k, lab]) =>
@@ -416,6 +433,20 @@ function openSheet(id) {
       <button class="btn ghost" id="closesheet">Close</button>
       <button class="btn danger" id="delplace">Delete place</button>
     </div>`;
+  // Tap the name to rename it: swap the heading for an input, commit on Enter/blur, Escape cancels.
+  sheet.querySelector("#namerow").onclick = () => {
+    const h = sheet.querySelector("#namerow");
+    if (h.querySelector("input")) return;
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.id = "nameedit"; inp.value = effName(p); inp.autocomplete = "off";
+    h.replaceChildren(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const commit = () => { if (done) return; done = true; setName(p, inp.value); openSheet(id); render(); };
+    const cancel = () => { if (done) return; done = true; openSheet(id); };
+    inp.onkeydown = (e) => { if (e.key === "Enter") commit(); else if (e.key === "Escape") cancel(); };
+    inp.onblur = commit;
+  };
   sheet.querySelectorAll(".statusseg button").forEach(b => {
     b.onclick = () => { store.setStatus(id, b.dataset.s); openSheet(id); render(); };
   });
@@ -432,7 +463,7 @@ function openSheet(id) {
   sheet.querySelector("#noteedit").oninput = (e) => store.setNote(id, e.target.value);
   sheet.querySelector("#closesheet").onclick = closeSheet;
   sheet.querySelector("#delplace").onclick = () => {
-    if (confirm(`Delete "${p.name}" from the app?`)) {
+    if (confirm(`Delete "${effName(p)}" from the app?`)) {
       if (p.id.startsWith("c")) store.data.custom = store.data.custom.filter(x => x.id !== p.id);
       else store.data.hidden.push(p.id);
       store.save(); closeSheet();
@@ -647,8 +678,8 @@ const MOODS = {
   music:   { label: "🎶 Live music",     cats: ["jazz", "club"] },
   dinner:  { label: "🍝 Dinner",         cats: ["restaurant", "street"] },
   coffee:  { label: "☕ Coffee & cake",  cats: ["cafe", "bakery", "dessert"] },
-  date:    { label: "💞 Date night",     cats: ["date"] },
-  culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop"] },
+  date:    { label: "💞 Date",           cats: ["date"] },
+  culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop", "books"] },
   away:    { label: "🌊 Out of town",    cats: ["trip"] },
 };
 // Time-aware default: mornings suggest coffee, afternoons culture, evenings dinner, nights drinks.
@@ -678,7 +709,7 @@ document.getElementById("roll").onclick = () => {
   const weighted = pool.flatMap(p => store.status(p.id) === "fav" ? [p, p] : [p]);
   const p = weighted[Math.floor(Math.random() * weighted.length)];
   const c = document.getElementById("tcard");
-  c.innerHTML = `<div class="cat">${CATS[effCats(p)[0]].emoji}</div><h2>${esc(p.name)}</h2>
+  c.innerHTML = `<div class="cat">${CATS[effCats(p)[0]].emoji}</div><h2>${esc(effName(p))}</h2>
     <div class="sub">${effCats(p).map(x => CATS[x].label).join(" · ")} · ${esc(effArea(p))}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(effNote(p))}</div>
     <button class="btn" onclick="openSheet('${p.id}')">Details</button>`;
 };
@@ -707,8 +738,7 @@ async function syncPull() {
   try {
     const remote = await syncFetchRemote();
     if (remote) {
-      remote.statuses ||= {}; remote.notes ||= {}; remote.cats ||= {}; remote.custom ||= []; remote.hidden ||= [];
-      store.data = remote;
+      store.data = normalizeState(remote);
       localStorage.setItem("cphPlacesState", JSON.stringify(store.data)); // bypass save() to avoid echo push
       render();
     }
@@ -748,6 +778,7 @@ function mergeStates(remote, local) {
     notes: { ...remote.notes, ...local.notes },
     cats: { ...remote.cats, ...local.cats },
     areas: { ...(remote.areas || {}), ...(local.areas || {}) },
+    names: { ...(remote.names || {}), ...(local.names || {}) },
     custom: [...remote.custom, ...local.custom.filter(l => !remote.custom.some(x => x.id === l.id))],
     hidden: [...new Set([...(remote.hidden || []), ...(local.hidden || [])])],
   };
@@ -796,10 +827,7 @@ function openSyncSheet() {
       localStorage.setItem("cphPlacesToken", t);
       try {
         const remote = await syncFetchRemote();
-        if (remote) {
-          remote.statuses ||= {}; remote.notes ||= {}; remote.cats ||= {}; remote.custom ||= []; remote.hidden ||= [];
-          store.data = mergeStates(remote, store.data);
-        }
+        if (remote) store.data = mergeStates(normalizeState(remote), store.data);
         localStorage.setItem("cphPlacesState", JSON.stringify(store.data));
         await syncPush();
         closeSheet(); render();
@@ -827,7 +855,7 @@ document.getElementById("importfile").onchange = (e) => {
   f.text().then(t => {
     try {
       store.data = JSON.parse(t);
-      store.data.statuses ||= {}; store.data.notes ||= {}; store.data.cats ||= {}; store.data.areas ||= {}; store.data.custom ||= []; store.data.hidden ||= [];
+      normalizeState(store.data);
       store.save(); render(); alert("Imported ✓");
     }
     catch { alert("Not a valid backup file"); }
