@@ -6,7 +6,7 @@ A single-page web app, no build step, no backend:
 
 - **[index.html](index.html)** — the app (Leaflet map, list, filters, "Tonight" random picker)
 - **[places.js](places.js)** — the data: one entry per place (imported from a Google Maps saved list)
-- Your personal state (want to go 🎈 / been 👍👎 / favorite ❤️, notes, category edits, added/deleted places) lives in the browser's localStorage.
+- Your personal state (to try 🎈 / been 👍👎 / favorite ❤️, notes, category edits, added/deleted places) lives in the browser's localStorage.
   Use **Tonight → Export my data** to back it up, **Import** to restore.
 - **Device sync** (optional): Tonight → ☁️ Set up device sync. State syncs through the private repo
   `cph-places-data` (file `user-state.json`) using a fine-grained GitHub token scoped to only that repo
