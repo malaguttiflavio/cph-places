@@ -195,7 +195,10 @@ const CATS = {
   spirit:     { label: "Spirituality",   emoji: "🧘", color: "#8a63c9" },
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
-const STATUSES = { want: "Want to go", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
+const STATUSES = { want: "🎈 Want to go", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
+// The sheet's segmented control puts all four side by side, where "🎈 Want to go"
+// wraps to two lines and makes the whole control taller. Short label there only.
+const STATUSES_SHORT = { ...STATUSES, want: "🎈 Want" };
 
 // Canonical neighbourhoods. Keeping this list closed is what stops the area filter
 // fragmenting into "Indre Østerbro", "Kødbyen", "Nørrevold" and so on.
@@ -386,7 +389,7 @@ function renderList() {
       <span class="tx"><div class="nm">${esc(effName(p))}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
-    badge.textContent = { want: "Want", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
+    badge.textContent = { want: "🎈", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
     badge.onclick = (e) => { e.stopPropagation(); cycleStatus(p.id); };
     div.appendChild(badge);
     div.onclick = () => openSheet(p.id);
@@ -414,7 +417,7 @@ function openSheet(id) {
     <h2 class="editable" id="namerow" title="Tap to rename">${CATS[cats[0]].emoji} <span id="nameview">${esc(effName(p))}</span><span class="pen">✎ rename</span></h2>
     <div class="sub">${esc(effArea(p))}${p.rating ? " · ★ " + p.rating : ""}${p.price ? " · " + p.price : ""}<br>${esc(p.address || "")}</div>
     <div class="statusseg">
-      ${Object.entries(STATUSES).map(([k, lab]) =>
+      ${Object.entries(STATUSES_SHORT).map(([k, lab]) =>
         `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
     <p class="lbl">Categories — tap to toggle</p>
