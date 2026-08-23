@@ -118,6 +118,19 @@
   .statusseg button.on.beenplus  { background: var(--been); color: #fff; }
   .statusseg button.on.beenminus { background: var(--muted); color: #fff; }
   .statusseg button.on.fav  { background: var(--fav);  color: #fff; }
+  /* Map pins: the emoji carries the category, the ring around it carries the status. */
+  .emojipin { background: none; border: none; }
+  .emojipin .pin {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--want);
+    /* --s is the pin diameter, set per marker: it shrinks as you zoom out. */
+    font-size: calc(var(--s) * 0.6); line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  }
+  .emojipin .pin.beenplus  { border-color: var(--been); }
+  .emojipin .pin.beenminus { border-color: var(--muted); opacity: 0.45; }
+  .emojipin .pin.fav { border-color: var(--fav); border-width: 3px; }
   .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 15px; }
   .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -196,7 +209,7 @@ const CATS = {
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
 // The `want` key is what's stored in localStorage and synced — only the label changed.
-const STATUSES = { want: "🎈 To try", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
+const STATUSES = { want: "❔ To try", beenplus: "Been 👍", beenminus: "Been 👎", fav: "🎈 Favorite" };
 
 // Canonical neighbourhoods. Keeping this list closed is what stops the area filter
 // fragmenting into "Indre Østerbro", "Kødbyen", "Nørrevold" and so on.
@@ -353,20 +366,30 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
   attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 20,
 }).addTo(map);
 let markers = [];
+// Emoji pins are much bigger than the dots they replaced, so they pile up over
+// the city centre when zoomed out. Shrink them until there's room to breathe.
+function pinSize() {
+  const z = map.getZoom();
+  return z >= 15 ? 27 : z >= 14 ? 24 : z >= 13 ? 21 : z >= 12 ? 18 : 15;
+}
+map.on("zoomend", renderMap);
 function renderMap() {
   markers.forEach(m => m.remove());
   markers = [];
   for (const p of filtered()) {
     const st = store.status(p.id);
     const c0 = CATS[effCats(p)[0]];
-    // want: plain category color · been👍: category color with green ring ·
-    // been👎: ghost gray · fav: bigger, bold ring
-    const opts =
-      st === "beenminus" ? { radius: 6, color: "#9aa3ad", fillColor: "#9aa3ad", fillOpacity: 0.2, weight: 1 } :
-      st === "beenplus"  ? { radius: 7, color: "#3f9b57", fillColor: c0.color, fillOpacity: 0.75, weight: 2.5 } :
-      st === "fav"       ? { radius: 9, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 3 } :
-                           { radius: 7, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 1.5 };
-    const m = L.circleMarker([p.lat, p.lng], opts).addTo(map);
+    // The emoji says what the place is; the ring says where I'm at with it —
+    // to try: warm ring · been👍: green ring · been👎: gray and faded · fav: bigger, bold red.
+    const size = pinSize() + (st === "fav" ? 5 : 0);
+    const icon = L.divIcon({
+      className: "emojipin",
+      html: `<div class="pin ${st}" style="--s:${size}px">${c0.emoji}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2],
+    });
+    const m = L.marker([p.lat, p.lng], { icon, riseOnHover: true }).addTo(map);
     m.bindPopup(`<b>${esc(effName(p))}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
@@ -387,7 +410,7 @@ function renderList() {
       <span class="tx"><div class="nm">${esc(effName(p))}</div><div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
-    badge.textContent = { want: "🎈", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
+    badge.textContent = { want: "❔", beenplus: "👍", beenminus: "👎", fav: "🎈" }[st];
     badge.onclick = (e) => { e.stopPropagation(); cycleStatus(p.id); };
     div.appendChild(badge);
     div.onclick = () => openSheet(p.id);
@@ -883,7 +906,7 @@ function render() {
   const n = filtered().length;
   const sv = Object.values(store.data.statuses);
   document.getElementById("counts").textContent =
-    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} ❤️`;
+    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} 🎈`;
   const rb = document.getElementById("restorebtn");
   const nh = store.data.hidden.length;
   rb.style.display = nh ? "" : "none";
