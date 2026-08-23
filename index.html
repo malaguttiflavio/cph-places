@@ -504,6 +504,7 @@ function openAddSheet() {
   const wrap = document.getElementById("sheetwrap");
   const sheet = document.getElementById("sheet");
   let newCats = [];
+  let newStatus = "want";
   let coords = null;
   sheet.innerHTML = `
     <h2>＋ Add a place</h2>
@@ -519,6 +520,11 @@ function openAddSheet() {
     <p class="lbl">Categories — tap all that apply</p>
     <div class="catgrid" id="np-cats">
       ${Object.entries(CATS).map(([k, c]) => `<button class="chip" data-c="${k}">${c.emoji} ${c.label}</button>`).join("")}
+    </div>
+    <p class="lbl">Experience</p>
+    <div class="statusseg" id="np-status">
+      ${Object.entries(STATUSES).map(([k, lab]) =>
+        `<button class="${k === "want" ? "on want" : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
     <p class="lbl">Location — search the address, or use where you are now</p>
     <input type="text" id="np-addr" placeholder="e.g. Århusgade 48, København">
@@ -539,6 +545,14 @@ function openAddSheet() {
       <button class="btn ghost" id="closesheet">Cancel</button>
     </div>`;
   const locEl = sheet.querySelector("#np-loc");
+  const statusBtns = sheet.querySelectorAll("#np-status button");
+  statusBtns.forEach(b => {
+    b.onclick = () => {
+      newStatus = b.dataset.s;
+      statusBtns.forEach(x => { x.className = ""; });
+      b.className = "on " + newStatus;
+    };
+  });
   sheet.querySelectorAll("#np-cats .chip").forEach(b => {
     b.onclick = () => {
       const k = b.dataset.c;
@@ -680,8 +694,9 @@ function openAddSheet() {
     const name = sheet.querySelector("#np-name").value.trim();
     if (!name) { alert("Give it a name"); return; }
     if (!coords) { alert("Set a location first (Find address or I'm there now)"); return; }
+    const id = "c" + Date.now();
     store.data.custom.push({
-      id: "c" + Date.now(),
+      id,
       name,
       cats: newCats.length ? newCats : ["other"],
       area: sheet.querySelector("#np-area").value.trim() || "Indre By",
@@ -689,6 +704,7 @@ function openAddSheet() {
       lat: coords.lat, lng: coords.lng,
       note: sheet.querySelector("#np-note").value.trim(),
     });
+    store.data.statuses[id] = newStatus;
     store.save(); closeSheet();
   };
   sheet.querySelector("#closesheet").onclick = closeSheet;
