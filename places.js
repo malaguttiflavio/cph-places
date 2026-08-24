@@ -140,4 +140,9 @@ const PLACES = [
   { id: "p136", name: "Vesterports Bageri", cats: ["bakery"], area: "Out of town", address: "Vestergade 6, 5600 Faaborg", lat: 55.0963950, lng: 10.2410390, note: "Named Denmark's best bakery 2021 — Faaborg, Fyn." },
   { id: "p137", name: "Tír Bakery", cats: ["bakery"], area: "Out of town", address: "Smidsholmvej, Hønsinge Lyng, 4560 Vig", lat: 55.8649259, lng: 11.5345924, note: "Countryside bakery in Odsherred, NW Zealand — weekend-trip territory." },
   { id: "p138", name: "Lago", cats: ["wine", "restaurant"], area: "Nørrebro", address: "Korsgade 1 (Peblinge Dossering), 2200 København", lat: 55.6844665, lng: 12.5595205, note: "Natural wine bar & restaurant by the lakes — Tue–Sat from 4 PM, walk-ins." },
+  // From Roadbook's Copenhagen bakery guide. Addresses are confirmed; the coordinates
+  // are approximate (4 dp) — geocode them properly if a pin looks off.
+  { id: "p139", name: "Bageriet Benji", cats: ["bakery"], area: "Nørrebro", address: "Mjølnerparken 52, 2200 København N", lat: 55.7003, lng: 12.5442, note: "Signature tea bun. By Rasmus Kristensen, ex-Noma head of bread and cakes — named after his son." },
+  { id: "p140", name: "Rug", cats: ["bakery", "cafe"], area: "Vesterbro", address: "Tietgensgade 39, 1704 København V", lat: 55.6716, lng: 12.5638, note: "Classic Danish bakes inside Villa Copenhagen, by the central station. Pizza and wine in the evening." },
+  { id: "p141", name: "Alice Ice Cream & Coffee", cats: ["bakery", "cafe", "dessert"], area: "Amager", address: "Markmandsgade 1, 2300 København S", lat: 55.6642, lng: 12.5952, note: "Pastries by Irish chef Alice Mohan (ex-Noma), Koppi coffee and house-made ice cream. Croissants and kouign-amann sell out by noon." },
 ];
