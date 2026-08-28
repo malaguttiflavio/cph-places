@@ -150,6 +150,7 @@
 <div class="chiprow" id="catchips"></div>
 <div class="chiprow" id="areachips"></div>
 <div class="chiprow" id="statuschips"></div>
+<div class="chiprow" id="occasionchips"></div>
 <div id="counts"></div>
 
 <main>
@@ -206,8 +207,13 @@ const CATS = {
   work:       { label: "Good to work",   emoji: "💻", color: "#46698f" },
   trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
   spirit:     { label: "Spirituality",   emoji: "🧘", color: "#8a63c9" },
+  parents:    { label: "Parents",        emoji: "🧓", color: "#c47a45" },
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
+// Who a place is for, rather than what it is. These are ordinary categories, but they
+// get their own chip row so they can be combined with a type ("bakeries for parents"),
+// which is why they are left out of the type row.
+const OCCASIONS = ["date", "work", "parents"];
 // The `want` key is what's stored in localStorage and synced — only the label changed.
 const STATUSES = { want: "❔ To try", beenplus: "Been 👍", beenminus: "Been 👎", fav: "🎈 Favorite" };
 
@@ -312,10 +318,11 @@ function setName(p, name) {
   store.save();
 }
 
-let catFilter = null, statusFilter = null, areaFilter = null, query = "";
+let catFilter = null, statusFilter = null, areaFilter = null, occasionFilter = null, query = "";
 
 function matches(p) {
   if (catFilter && !effCats(p).includes(catFilter)) return false;
+  if (occasionFilter && !effCats(p).includes(occasionFilter)) return false;
   if (areaFilter && effArea(p) !== areaFilter) return false;
   if (statusFilter && store.status(p.id) !== statusFilter) return false;
   if (query) {
@@ -334,6 +341,7 @@ function buildChips() {
   cc.innerHTML = "";
   cc.appendChild(mkChip("All", () => { catFilter = null; render(); }, catFilter === null));
   for (const [k, c] of Object.entries(CATS)) {
+    if (OCCASIONS.includes(k)) continue;   // these live in their own row
     cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
   }
   const ac = document.getElementById("areachips");
@@ -350,6 +358,14 @@ function buildChips() {
   sc.appendChild(mkChip("Any status", () => { statusFilter = null; render(); }, statusFilter === null));
   for (const [k, lab] of Object.entries(STATUSES)) {
     sc.appendChild(mkChip(lab, () => { statusFilter = statusFilter === k ? null : k; render(); }, statusFilter === k));
+  }
+  const oc = document.getElementById("occasionchips");
+  oc.innerHTML = "";
+  oc.appendChild(mkChip("Any occasion", () => { occasionFilter = null; render(); }, occasionFilter === null));
+  for (const k of OCCASIONS) {
+    const c = CATS[k];
+    const n = allPlaces().filter(p => effCats(p).includes(k)).length;
+    oc.appendChild(mkChip(`${c.emoji} ${c.label} (${n})`, () => { occasionFilter = occasionFilter === k ? null : k; render(); }, occasionFilter === k));
   }
 }
 function mkChip(label, onclick, on) {
