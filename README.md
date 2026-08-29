@@ -37,7 +37,7 @@ Two ways:
 ```
 
 Categories (a place can have several): `cafe, bakery, bar, wine, jazz, club, restaurant, street, dessert, date, museum, sight, stage, shop, books, grocery, work, trip, spirit, parents, other`.
-`date`, `work` and `parents` say who a place is for rather than what it is, so they get their own
-"occasion" chip row instead of appearing in the type row — pick one from each row to combine them.
+`date`, `work`, `parents` and `trip` say who or what a place is for rather than what it is, so they get
+their own "occasion" chip row instead of appearing in the type row — pick one from each row to combine them.
 Category, neighbourhood and name edits made in the app are stored as per-place overrides in localStorage
 (tap a place's name in its detail sheet to rename it).
