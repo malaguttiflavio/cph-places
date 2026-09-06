@@ -318,13 +318,18 @@ function setName(p, name) {
   store.save();
 }
 
-let catFilter = null, statusFilter = null, areaFilter = null, occasionFilter = null, query = "";
+// One set per chip row; empty means "everything". Picks inside a row are OR'd
+// (cafés *or* bakeries), and the rows are AND'd together (cafés in Nørrebro).
+const catFilters = new Set(), areaFilters = new Set(), statusFilters = new Set(), occasionFilters = new Set();
+const anyOf = (set, values) => !set.size || values.some(v => set.has(v));
+let query = "";
 
 function matches(p) {
-  if (catFilter && !effCats(p).includes(catFilter)) return false;
-  if (occasionFilter && !effCats(p).includes(occasionFilter)) return false;
-  if (areaFilter && effArea(p) !== areaFilter) return false;
-  if (statusFilter && store.status(p.id) !== statusFilter) return false;
+  const cats = effCats(p);
+  if (!anyOf(catFilters, cats)) return false;
+  if (!anyOf(occasionFilters, cats)) return false;
+  if (!anyOf(areaFilters, [effArea(p)])) return false;
+  if (!anyOf(statusFilters, [store.status(p.id)])) return false;
   if (query) {
     const q = query.toLowerCase();
     const hay = (effName(p) + " " + p.name + " " + effArea(p) + " " + (p.address || "") + " " + effNote(p) + " " +
@@ -336,36 +341,39 @@ function matches(p) {
 const filtered = () => allPlaces().filter(matches);
 
 // ----- chips -----
+// Tapping a chip adds it to its row's set; tapping it again takes it out. The
+// leading chip ("All", "All areas", …) empties the row and lights up when it is.
+function toggle(set, k) { set.has(k) ? set.delete(k) : set.add(k); render(); }
 function buildChips() {
   const cc = document.getElementById("catchips");
   cc.innerHTML = "";
-  cc.appendChild(mkChip("All", () => { catFilter = null; render(); }, catFilter === null));
+  cc.appendChild(mkChip("All", () => { catFilters.clear(); render(); }, !catFilters.size));
   for (const [k, c] of Object.entries(CATS)) {
     if (OCCASIONS.includes(k)) continue;   // these live in their own row
-    cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
+    cc.appendChild(mkChip(c.emoji + " " + c.label, () => toggle(catFilters, k), catFilters.has(k)));
   }
   const ac = document.getElementById("areachips");
   ac.innerHTML = "";
-  ac.appendChild(mkChip("All areas", () => { areaFilter = null; render(); }, areaFilter === null));
+  ac.appendChild(mkChip("All areas", () => { areaFilters.clear(); render(); }, !areaFilters.size));
   const areaCounts = {};
   for (const p of allPlaces()) areaCounts[effArea(p)] = (areaCounts[effArea(p)] || 0) + 1;
   const areas = Object.keys(areaCounts).sort((a, b) => areaCounts[b] - areaCounts[a] || a.localeCompare(b));
   for (const a of areas) {
-    ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => { areaFilter = areaFilter === a ? null : a; render(); }, areaFilter === a));
+    ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => toggle(areaFilters, a), areaFilters.has(a)));
   }
   const sc = document.getElementById("statuschips");
   sc.innerHTML = "";
-  sc.appendChild(mkChip("Any status", () => { statusFilter = null; render(); }, statusFilter === null));
+  sc.appendChild(mkChip("Any status", () => { statusFilters.clear(); render(); }, !statusFilters.size));
   for (const [k, lab] of Object.entries(STATUSES)) {
-    sc.appendChild(mkChip(lab, () => { statusFilter = statusFilter === k ? null : k; render(); }, statusFilter === k));
+    sc.appendChild(mkChip(lab, () => toggle(statusFilters, k), statusFilters.has(k)));
   }
   const oc = document.getElementById("occasionchips");
   oc.innerHTML = "";
-  oc.appendChild(mkChip("Any occasion", () => { occasionFilter = null; render(); }, occasionFilter === null));
+  oc.appendChild(mkChip("Any occasion", () => { occasionFilters.clear(); render(); }, !occasionFilters.size));
   for (const k of OCCASIONS) {
     const c = CATS[k];
     const n = allPlaces().filter(p => effCats(p).includes(k)).length;
-    oc.appendChild(mkChip(`${c.emoji} ${c.label} (${n})`, () => { occasionFilter = occasionFilter === k ? null : k; render(); }, occasionFilter === k));
+    oc.appendChild(mkChip(`${c.emoji} ${c.label} (${n})`, () => toggle(occasionFilters, k), occasionFilters.has(k)));
   }
 }
 function mkChip(label, onclick, on) {
