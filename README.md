@@ -5,9 +5,15 @@ Personal map of places to visit in Copenhagen (and beyond) — bars, bakeries, j
 A single-page web app, no build step, no backend:
 
 - **[index.html](index.html)** — the app (Leaflet map, list, filters, "Tonight" random picker).
-  The four chip rows — type, area, status, occasion — each take any number of picks: choices
+  The five chip rows — type, area, status, occasion, time — each take any number of picks: choices
   within a row are OR'd, and the rows narrow each other (cafés *or* bakeries, in Nørrebro).
   The first chip in a row ("All", "All areas", …) clears that row.
+- **Opening hours**: `hours` on a place uses [OSM `opening_hours`](https://wiki.openstreetmap.org/wiki/Key:opening_hours)
+  syntax (`Tu-Su 07:30-17:00; Mo off`), with `hoursSrc`/`hoursChk` recording where it came from and when.
+  **[hours.csv](hours.csv)** is the editable source — fill a row there and re-merge. Always evaluated in
+  `Europe/Copenhagen`, never device time, so "open now" is right while planning from another timezone.
+  Places with no hours are shown as unknown and never guessed open; the counts line says how many.
+  "🕐 Open now" filters to known-open, "⏰ Plan a time" scrubs to any day and hour.
 - **[places.js](places.js)** — the data: one entry per place (imported from a Google Maps saved list)
 - Your personal state (to try ❔ / been 👍👎 / favorite 🎈, notes, category edits, added/deleted places) lives in the browser's localStorage.
   On the map each place is its category's emoji; the ring around it is the status.

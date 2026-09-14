@@ -131,6 +131,20 @@
   .emojipin .pin.beenplus  { border-color: var(--been); }
   .emojipin .pin.beenminus { border-color: var(--muted); opacity: 0.45; }
   .emojipin .pin.fav { border-color: var(--fav); border-width: 3px; }
+  /* opening hours */
+  .item .hrs { font-size: 12.5px; font-weight: 600; margin: 1px 0; }
+  .hrs.open, .hrsnow.open { color: var(--been); }
+  .hrs.shut, .hrsnow.shut { color: var(--muted); }
+  .emojipin .pin.shut { opacity: 0.38; }
+  .hrsnow { font-size: 14.5px; font-weight: 600; margin: 2px 0 6px; }
+  .hrsweek { border-collapse: collapse; font-size: 13.5px; width: 100%; max-width: 280px; }
+  .hrsweek td { padding: 2px 0; color: var(--muted); }
+  .hrsweek td:first-child { width: 52px; }
+  .hrsweek tr.today td { color: var(--ink); font-weight: 600; }
+  #timeplan { padding: 2px 14px 6px; }
+  #timeslider { display: flex; align-items: center; gap: 10px; }
+  #timeslider input { flex: 1; accent-color: var(--accent); }
+  #attimelbl { font-size: 13.5px; font-weight: 600; min-width: 74px; text-align: right; }
   .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 15px; }
   .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -151,6 +165,11 @@
 <div class="chiprow" id="areachips"></div>
 <div class="chiprow" id="statuschips"></div>
 <div class="chiprow" id="occasionchips"></div>
+<div class="chiprow" id="timechips"></div>
+<div id="timeplan" hidden>
+  <div class="chiprow" id="daychips"></div>
+  <label id="timeslider"><input type="range" id="attime" min="0" max="1425" step="15"><span id="attimelbl"></span></label>
+</div>
 <div id="counts"></div>
 
 <main>
@@ -323,9 +342,14 @@ function setName(p, name) {
 const catFilters = new Set(), areaFilters = new Set(), statusFilters = new Set(), occasionFilters = new Set();
 const anyOf = (set, values) => !set.size || values.some(v => set.has(v));
 let query = "";
+// null = don't filter on time · "now" = open right now · "at" = open at the planned moment.
+let timeMode = null, atDay = 0, atMin = 12 * 60;
+const whenSelected = () => timeMode === "at" ? { day: atDay, min: atMin, month: cphNow().month } : cphNow();
 
 function matches(p) {
   const cats = effCats(p);
+  // Only places we *know* are open pass; unknown hours are counted separately, not guessed open.
+  if (timeMode) { const hs = hoursState(p, whenSelected()); if (!hs || !hs.open) return false; }
   if (!anyOf(catFilters, cats)) return false;
   if (!anyOf(occasionFilters, cats)) return false;
   if (!anyOf(areaFilters, [effArea(p)])) return false;
@@ -339,6 +363,127 @@ function matches(p) {
   return true;
 }
 const filtered = () => allPlaces().filter(matches);
+
+// ----- opening hours -----
+// Values are the OSM opening_hours subset we actually use: an optional month range,
+// a day list ("Mo-Fr", "Sa,Su"), and either time intervals or "off".
+//   Tu-Su 07:30-17:00; Mo off
+//   Mo-Su 07:00-16:00,17:30-22:00
+//   May-Sep Mo-Fr 10:00-16:30
+const DAY_KEYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const DAY_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const hoursCache = new Map();
+
+function parseHours(spec) {
+  if (hoursCache.has(spec)) return hoursCache.get(spec);
+  let rules = null;
+  try {
+    rules = [];
+    for (let rule of spec.split(";")) {
+      rule = rule.trim();
+      if (!rule) continue;
+      const m = rule.match(/^(?:([A-Z][a-z]{2})-([A-Z][a-z]{2})\s+)?((?:[A-Z][a-z],?|-)+)\s+(.+)$/);
+      if (!m) throw 0;
+      const [, m1, m2, dayPart, timePart] = m;
+      const months = m1 ? [MONTHS.indexOf(m1), MONTHS.indexOf(m2)] : null;
+      if (months && (months[0] < 0 || months[1] < 0)) throw 0;
+      const days = [];
+      for (const grp of dayPart.split(",")) {
+        const r = grp.match(/^([A-Z][a-z])-([A-Z][a-z])$/);
+        if (r) {
+          const a = DAY_KEYS.indexOf(r[1]), b = DAY_KEYS.indexOf(r[2]);
+          if (a < 0 || b < 0) throw 0;
+          for (let i = a; ; i = (i + 1) % 7) { days.push(i); if (i === b) break; }
+        } else {
+          const i = DAY_KEYS.indexOf(grp);
+          if (i < 0) throw 0;
+          days.push(i);
+        }
+      }
+      if (/^(off|closed)$/i.test(timePart.trim())) { rules.push({ days, months, off: true }); continue; }
+      const intervals = timePart.split(",").map(t => {
+        const x = t.trim().match(/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
+        if (!x) throw 0;
+        const s = +x[1] * 60 + +x[2], e = +x[3] * 60 + +x[4];
+        return [s, e];
+      });
+      rules.push({ days, months, intervals });
+    }
+    if (!rules.length) throw 0;
+  } catch { rules = null; }   // unparseable reads as "unknown", never as "closed"
+  hoursCache.set(spec, rules);
+  return rules;
+}
+
+// Always reason in Copenhagen time: the phone may be in another timezone while
+// you plan the trip, and "open now" has to mean open *there*.
+function cphNow() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Copenhagen", weekday: "short", hour: "2-digit", minute: "2-digit", month: "numeric", hour12: false,
+  }).formatToParts(new Date());
+  const get = t => parts.find(x => x.type === t).value;
+  const wd = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(get("weekday"));
+  return { day: wd, min: +get("hour") % 24 * 60 + +get("minute"), month: +get("month") - 1 };
+}
+
+const inMonths = (r, month) => !r.months || (r.months[0] <= r.months[1]
+  ? month >= r.months[0] && month <= r.months[1]
+  : month >= r.months[0] || month <= r.months[1]);
+
+// Intervals whose end <= start run past midnight, so a place open till 02:00 is
+// still open at 01:00 on what the clock calls the *next* day.
+function spansFor(rules, day, month) {
+  const out = [];
+  for (const r of rules) {
+    if (r.off || !inMonths(r, month)) continue;
+    if (r.days.includes(day)) for (const [s, e] of r.intervals) out.push([s, e <= s ? e + 1440 : e]);
+    const prev = (day + 6) % 7;
+    if (r.days.includes(prev)) for (const [s, e] of r.intervals) if (e <= s) out.push([s - 1440, e]);
+  }
+  return out;
+}
+
+// → null when we have nothing, else { open, closes, opens, opensDay }.
+function hoursState(p, when) {
+  if (!p.hours) return null;
+  const rules = parseHours(p.hours);
+  if (!rules) return null;
+  const now = when || cphNow();
+  for (const [s, e] of spansFor(rules, now.day, now.month)) {
+    if (now.min >= s && now.min < e) return { open: true, closes: e % 1440 };
+  }
+  for (let ahead = 0; ahead < 8; ahead++) {
+    const day = (now.day + ahead) % 7;
+    const cands = spansFor(rules, day, now.month)
+      .filter(([s]) => s >= 0 && (ahead > 0 || s > now.min)).sort((a, b) => a[0] - b[0]);
+    if (cands.length) return { open: false, opens: cands[0][0], opensDay: day, opensIn: ahead };
+  }
+  return { open: false };   // has hours, but never open in this month (seasonal)
+}
+
+const hhmm = m => String(Math.floor((m % 1440) / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+function hoursLabel(st) {
+  if (!st) return null;
+  if (st.open) return "Open · till " + hhmm(st.closes);
+  if (st.opens == null) return "Closed";
+  if (st.opensIn === 0) return "Closed · opens " + hhmm(st.opens);
+  return "Closed · " + (st.opensIn === 1 ? "opens tomorrow " : "opens " + DAY_LABEL[st.opensDay] + " ") + hhmm(st.opens);
+}
+// The week, as rows, for the detail sheet.
+function hoursWeek(p) {
+  const rules = parseHours(p.hours);
+  if (!rules) return [];
+  const month = cphNow().month;
+  return DAY_LABEL.map((lab, day) => {
+    const iv = [];
+    for (const r of rules) {
+      if (r.off || !inMonths(r, month) || !r.days.includes(day)) continue;
+      for (const [s, e] of r.intervals) iv.push(hhmm(s) + "–" + hhmm(e));
+    }
+    return { lab, txt: iv.length ? iv.join(", ") : "Closed" };
+  });
+}
 
 // ----- chips -----
 // Tapping a chip adds it to its row's set; tapping it again takes it out. The
@@ -366,6 +511,25 @@ function buildChips() {
   sc.appendChild(mkChip("Any status", () => { statusFilters.clear(); render(); }, !statusFilters.size));
   for (const [k, lab] of Object.entries(STATUSES)) {
     sc.appendChild(mkChip(lab, () => toggle(statusFilters, k), statusFilters.has(k)));
+  }
+  const tc = document.getElementById("timechips");
+  tc.innerHTML = "";
+  tc.appendChild(mkChip("Any time", () => { timeMode = null; render(); }, timeMode === null));
+  tc.appendChild(mkChip("🕐 Open now", () => { timeMode = timeMode === "now" ? null : "now"; render(); }, timeMode === "now"));
+  tc.appendChild(mkChip("⏰ Plan a time", () => {
+    if (timeMode === "at") { timeMode = null; } else { const n = cphNow(); atDay = n.day; atMin = Math.round(n.min / 15) * 15; timeMode = "at"; }
+    render();
+  }, timeMode === "at"));
+  const plan = document.getElementById("timeplan");
+  plan.hidden = timeMode !== "at";
+  if (timeMode === "at") {
+    const dc = document.getElementById("daychips");
+    dc.innerHTML = "";
+    DAY_LABEL.forEach((lab, i) => dc.appendChild(mkChip(lab, () => { atDay = i; render(); }, atDay === i)));
+    const slider = document.getElementById("attime");
+    slider.value = atMin;
+    document.getElementById("attimelbl").textContent = `${DAY_LABEL[atDay]} ${hhmm(atMin)}`;
+    slider.oninput = () => { atMin = +slider.value; render(); };
   }
   const oc = document.getElementById("occasionchips");
   oc.innerHTML = "";
@@ -408,7 +572,9 @@ function renderMap() {
     const size = pinSize() + (st === "fav" ? 5 : 0);
     const icon = L.divIcon({
       className: "emojipin",
-      html: `<div class="pin ${st}" style="--s:${size}px">${c0.emoji}</div>`,
+      // Known-closed pins fade back rather than vanish — a map that empties out as
+      // the evening goes on is more disorienting than one that dims.
+      html: `<div class="pin ${st}${hoursState(p, whenSelected())?.open === false ? " shut" : ""}" style="--s:${size}px">${c0.emoji}</div>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
       popupAnchor: [0, -size / 2],
@@ -429,9 +595,13 @@ function renderList() {
     const cats = effCats(p);
     const div = document.createElement("div");
     div.className = "item";
+    const hs = hoursState(p, whenSelected());
+    const hlab = hoursLabel(hs);
     const sub = [cats.map(c => CATS[c].emoji).join("") + " " + effArea(p), p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
     div.innerHTML = `<span class="dot" style="background:${CATS[cats[0]].color}"></span>
-      <span class="tx"><div class="nm">${esc(effName(p))}</div><div class="sub">${esc(sub)}</div></span>`;
+      <span class="tx"><div class="nm">${esc(effName(p))}</div>
+        ${hlab ? `<div class="hrs ${hs.open ? "open" : "shut"}">${esc(hlab)}</div>` : ""}
+        <div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
     badge.textContent = { want: "❔", beenplus: "👍", beenminus: "👎", fav: "🎈" }[st];
@@ -465,6 +635,16 @@ function openSheet(id) {
       ${Object.entries(STATUSES).map(([k, lab]) =>
         `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
+    ${(() => {
+      const hs = hoursState(p, whenSelected());
+      if (!hs) return `<p class="lbl">Opening hours</p><div class="hint">Not recorded yet — check Google Maps.</div>`;
+      const today = cphNow().day;
+      return `<p class="lbl">Opening hours</p>
+        <div class="hrsnow ${hs.open ? "open" : "shut"}">${esc(hoursLabel(hs))}</div>
+        <table class="hrsweek">${hoursWeek(p).map((r, i) =>
+          `<tr class="${i === today ? "today" : ""}"><td>${r.lab}</td><td>${esc(r.txt)}</td></tr>`).join("")}</table>
+        <div class="hint">${esc(p.hoursSrc || "")}${p.hoursChk ? " · checked " + esc(p.hoursChk) : ""} — confirm in Google Maps before a long trip.</div>`;
+    })()}
     <p class="lbl">Categories — tap to toggle</p>
     <div class="catgrid" id="catedit">
       ${Object.entries(CATS).map(([k, c]) =>
@@ -945,8 +1125,12 @@ function render() {
   renderList();
   const n = filtered().length;
   const sv = Object.values(store.data.statuses);
+  // While filtering on time, say how many places simply have no hours yet — otherwise
+  // a short list looks like "nothing is open" rather than "we don't know about most".
+  const noHours = timeMode ? allPlaces().filter(p => !hoursState(p, whenSelected())).length : 0;
   document.getElementById("counts").textContent =
-    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} 🎈`;
+    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} 🎈`
+    + (noHours ? ` · ${noHours} without hours` : "");
   const rb = document.getElementById("restorebtn");
   const nh = store.data.hidden.length;
   rb.style.display = nh ? "" : "none";
