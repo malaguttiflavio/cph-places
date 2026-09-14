@@ -23,13 +23,13 @@ p119,Harbo Bar,Nørrebro,bar cafe,Mo-Th 09:00-24:00; Fr 09:00-02:00; Sa 09:30-02
 p75,Hart Bageri,Nørrebro,bakery,Mo-Fr 07:30-18:00; Sa-Su 08:00-17:00,hartbageri.com,2026-09,
 p126,Heimdalsgade 22,Nørrebro,cafe,Mo-Fr 07:30-18:00; Sa-Su 09:00-18:00,visitcopenhagen.com,2026-09,
 p30,Ipsen & Co,Frederiksberg,cafe,Mo-Su 08:00-18:00,ipsenogco.dk,2026-09,
-p135,Jumbo Bakery & Eatery,Out of town,bakery,,,,ADDRESS MISMATCH: ours says Værkmestergade; found Mindet 4 / Ankersgade 12
+p135,Jumbo Bakery & Eatery,Out of town,bakery,Mo-Fr 07:00-17:00; Sa-Su 08:00-16:00,jumboaarhus.com,2026-09,
 p127,Juno the Bakery,Østerbro,bakery,Tu-Sa 07:30-18:00; Su 07:30-16:00; Mo off,junothebakery.com,2026-09,Famous for the cardamom buns — expect a queue
 p118,KALA Bar,Nørrebro,cafe,Mo-Sa 08:00-17:00; Su 09:00-16:00,kalabar.dk,2026-09,
 p144,Kani,Frederiksberg,bakery cafe,Tu-Su 07:30-17:00; Mo off,kanibakery.com,2026-09,Closed Mondays
-p11,Kong Hans Bakery,Indre By,bakery,,,,ADDRESS MISMATCH: ours is the restaurant (Vingårdstræde); bakery appears to be Øster Farimagsgade 18
+p11,Kong Hans Bakery,Indre By,bakery,Mo-Su 07:30-18:00,konghansbakery.dk,2026-09,
 p145,Københavns Bageri,Vesterbro,bakery,Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00,carlsbergbyen.dk,2026-09,"Danish classics in a glass-walled open kitchen, by two ex-Noma bakers"
-p54,Le Mont Blanc,Frederiksberg,cafe,,,,"CHECK: listed as a pizzeria, shares Gl. Kongevej 173 with Original Coffee"
+p54,Le Mont Blanc,Frederiksberg,cafe,,,,may be closed — address now shows as Original Coffee
 p108,Lille Bakery,Refshaleøen,bakery cafe,We-Su 08:00-18:00; Mo-Tu off,refshaleoen.dk,2026-09,Arrive early — queues and things sell out
 p8,Litteraturhaus Cafe,Nørrebro,cafe,Mo-Fr 10:00-15:00,literaturhaus.dk,2026-09,
 p99,Original Coffee,Frederiksberg,cafe,Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00,originalcoffee.dk,2026-09,
@@ -39,7 +39,7 @@ p142,Riviera,Indre By,bakery cafe,Mo-Fr 08:00-16:00; Sa-Su 09:00-16:00,corner.in
 p140,Rug,Vesterbro,bakery cafe,"Mo-Su 07:00-16:00,17:30-22:00",rugbakery.com,2026-09,
 p123,Sidecar,Nørrebro,cafe restaurant,Mo 08:00-16:00; Tu-We 08:00-22:30; Th 08:00-24:00; Fr 08:00-00:30; Sa 09:30-00:30; Su 09:30-22:30,yelp.com,2026-09,
 p131,Skt. Peders Bageri,Indre By,bakery,,,,"CONFLICT: one source daily 07-18, another Mo-Fr 07:30-17, Su closed"
-p137,Tír Bakery,Out of town,bakery,,,,ADDRESS MISMATCH: ours Hønsinge Lyng vs Gnibenvej 13; sells 'until sold out' anyway
+p137,Tír Bakery,Out of town,bakery,,,,bakes Tue-Sun from 8 until sold out — no fixed closing; pin may be the wrong location
 p136,Vesterports Bageri,Out of town,bakery,Mo-Th 06:00-17:30; Fr 06:00-18:00; Sa 06:00-14:00; Su 06:00-12:30,vesterportbageri.dk,2026-09,
 p51,12oz Vintage,Indre By,shop,,,,
 p23,Acem Meditation,Frederiksberg,other,,,,
