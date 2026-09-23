@@ -35,6 +35,8 @@ Two ways:
 { id: "p106", name: "…", cats: ["wine", "jazz"], area: "Nørrebro", address: "…", lat: 55.68, lng: 12.55, rating: 4.5, price: "100–200 kr", note: "…" }
 ```
 
-Categories (a place can have several): `cafe, bakery, bar, wine, jazz, club, restaurant, street, dessert, date, museum, sight, stage, shop, books, grocery, work, trip, spirit, other`.
+Categories (a place can have several): `cafe, bakery, bar, wine, jazz, club, restaurant, street, dessert, date, museum, sight, stage, shop, books, grocery, work, trip, spirit, parents, other`.
+
+`parents` marks the places to take family when they visit — it has its own **👪 Parents visiting** mood in Tonight.
 Category, neighbourhood and name edits made in the app are stored as per-place overrides in localStorage
 (tap a place's name in its detail sheet to rename it).
