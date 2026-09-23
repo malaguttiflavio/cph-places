@@ -118,6 +118,54 @@
   .statusseg button.on.beenplus  { background: var(--been); color: #fff; }
   .statusseg button.on.beenminus { background: var(--muted); color: #fff; }
   .statusseg button.on.fav  { background: var(--fav);  color: #fff; }
+  /* Map pins: the emoji carries the category, the ring around it carries the status. */
+  .emojipin { background: none; border: none; }
+  .emojipin .pin {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--want);
+    /* --s is the pin diameter, set per marker: it shrinks as you zoom out. */
+    font-size: calc(var(--s) * 0.6); line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  }
+  .emojipin .pin.beenplus  { border-color: var(--been); }
+  .emojipin .pin.beenminus { border-color: var(--muted); opacity: 0.45; }
+  .emojipin .pin.fav { border-color: var(--fav); border-width: 3px; }
+  /* opening hours */
+  .item .hrs { font-size: 12.5px; font-weight: 600; margin: 1px 0; }
+  .hrs.open, .hrsnow.open { color: var(--been); }
+  .hrs.shut, .hrsnow.shut { color: var(--muted); }
+  .emojipin .pin.shut { opacity: 0.38; }
+  .emojipin .pin.faded { opacity: 0.16; }
+  .hrsnow { font-size: 14.5px; font-weight: 600; margin: 2px 0 6px; }
+  .hrsweek { border-collapse: collapse; font-size: 13.5px; width: 100%; max-width: 280px; }
+  .hrsweek td { padding: 2px 0; color: var(--muted); }
+  .hrsweek td:first-child { width: 52px; }
+  .hrsweek tr.today td { color: var(--ink); font-weight: 600; }
+  #timeplan { padding: 2px 14px 6px; }
+  #timeslider { display: flex; align-items: center; gap: 10px; }
+  #timeslider input { flex: 1; accent-color: var(--accent); }
+  #attimelbl { font-size: 13.5px; font-weight: 600; min-width: 74px; text-align: right; }
+  /* routes */
+  body.nofilters .chiprow, body.nofilters #counts, body.nofilters #timeplan { display: none; }
+  .rwrap { padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); }
+  .rcard {
+    background: var(--panel); border: 1.5px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .rcard.on { border-color: var(--accent); }
+  .rtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rname { font-weight: 600; font-size: 15.5px; }
+  .rmeta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .rnote { color: var(--ink); font-size: 13.5px; margin: 5px 0 6px; }
+  .rstops { color: var(--muted); font-size: 12.5px; }
+  .rhint { color: var(--accent); font-size: 12.5px; margin-top: 7px; }
+  .routeend { background: none; border: none; }
+  .rend {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--panel);
+    border: 2px solid var(--accent); display: flex; align-items: center;
+    justify-content: center; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
   .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 15px; }
   .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -137,11 +185,18 @@
 <div class="chiprow" id="catchips"></div>
 <div class="chiprow" id="areachips"></div>
 <div class="chiprow" id="statuschips"></div>
+<div class="chiprow" id="occasionchips"></div>
+<div class="chiprow" id="timechips"></div>
+<div id="timeplan" hidden>
+  <div class="chiprow" id="daychips"></div>
+  <label id="timeslider"><input type="range" id="attime" min="0" max="1425" step="15"><span id="attimelbl"></span></label>
+</div>
 <div id="counts"></div>
 
 <main>
   <div class="view on" id="mapview"><div id="map"></div></div>
   <div class="view" id="listview"></div>
+  <div class="view" id="routeview"></div>
   <div class="view" id="tonightview">
     <div id="tonight">
       <div class="chiprow" id="moodchips" style="justify-content:center;flex-wrap:wrap;overflow:visible;"></div>
@@ -165,6 +220,7 @@
 <nav>
   <button data-v="mapview" class="on"><span class="ic">🗺️</span>Map</button>
   <button data-v="listview"><span class="ic">📋</span>List</button>
+  <button data-v="routeview"><span class="ic">🧭</span>Routes</button>
   <button data-v="tonightview"><span class="ic">🎲</span>Tonight</button>
 </nav>
 
@@ -193,10 +249,15 @@ const CATS = {
   work:       { label: "Good to work",   emoji: "💻", color: "#46698f" },
   trip:       { label: "Day trips",      emoji: "🌊", color: "#3a7aa8" },
   spirit:     { label: "Spirituality",   emoji: "🧘", color: "#8a63c9" },
-  parents:    { label: "Parents",        emoji: "👪", color: "#5b8c85" },
+  parents:    { label: "Parents",        emoji: "🧓", color: "#c47a45" },
   other:      { label: "Other",          emoji: "📍", color: "#8a8a8a" },
 };
-const STATUSES = { want: "Want to go", beenplus: "Been 👍", beenminus: "Been 👎", fav: "❤️ Favorite" };
+// Who a place is for, rather than what it is. These are ordinary categories, but they
+// get their own chip row so they can be combined with a type ("bakeries for parents"),
+// which is why they are left out of the type row.
+const OCCASIONS = ["date", "work", "parents", "trip"];
+// The `want` key is what's stored in localStorage and synced — only the label changed.
+const STATUSES = { want: "❔ To try", beenplus: "Been 👍", beenminus: "Been 👎", fav: "🎈 Favorite" };
 
 // Canonical neighbourhoods. Keeping this list closed is what stops the area filter
 // fragmenting into "Indre Østerbro", "Kødbyen", "Nørrevold" and so on.
@@ -299,12 +360,23 @@ function setName(p, name) {
   store.save();
 }
 
-let catFilter = null, statusFilter = null, areaFilter = null, query = "";
+// One set per chip row; empty means "everything". Picks inside a row are OR'd
+// (cafés *or* bakeries), and the rows are AND'd together (cafés in Nørrebro).
+const catFilters = new Set(), areaFilters = new Set(), statusFilters = new Set(), occasionFilters = new Set();
+const anyOf = (set, values) => !set.size || values.some(v => set.has(v));
+let query = "";
+// null = don't filter on time · "now" = open right now · "at" = open at the planned moment.
+let timeMode = null, atDay = 0, atMin = 12 * 60;
+const whenSelected = () => timeMode === "at" ? { day: atDay, min: atMin, month: cphNow().month } : cphNow();
 
 function matches(p) {
-  if (catFilter && !effCats(p).includes(catFilter)) return false;
-  if (areaFilter && effArea(p) !== areaFilter) return false;
-  if (statusFilter && store.status(p.id) !== statusFilter) return false;
+  const cats = effCats(p);
+  // Only places we *know* are open pass; unknown hours are counted separately, not guessed open.
+  if (timeMode) { const hs = hoursState(p, whenSelected()); if (!hs || !hs.open) return false; }
+  if (!anyOf(catFilters, cats)) return false;
+  if (!anyOf(occasionFilters, cats)) return false;
+  if (!anyOf(areaFilters, [effArea(p)])) return false;
+  if (!anyOf(statusFilters, [store.status(p.id)])) return false;
   if (query) {
     const q = query.toLowerCase();
     const hay = (effName(p) + " " + p.name + " " + effArea(p) + " " + (p.address || "") + " " + effNote(p) + " " +
@@ -315,28 +387,180 @@ function matches(p) {
 }
 const filtered = () => allPlaces().filter(matches);
 
+// ----- opening hours -----
+// Values are the OSM opening_hours subset we actually use: an optional month range,
+// a day list ("Mo-Fr", "Sa,Su"), and either time intervals or "off".
+//   Tu-Su 07:30-17:00; Mo off
+//   Mo-Su 07:00-16:00,17:30-22:00
+//   May-Sep Mo-Fr 10:00-16:30
+const DAY_KEYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const DAY_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const hoursCache = new Map();
+
+function parseHours(spec) {
+  if (hoursCache.has(spec)) return hoursCache.get(spec);
+  let rules = null;
+  try {
+    rules = [];
+    for (let rule of spec.split(";")) {
+      rule = rule.trim();
+      if (!rule) continue;
+      const m = rule.match(/^(?:([A-Z][a-z]{2})-([A-Z][a-z]{2})\s+)?((?:[A-Z][a-z],?|-)+)\s+(.+)$/);
+      if (!m) throw 0;
+      const [, m1, m2, dayPart, timePart] = m;
+      const months = m1 ? [MONTHS.indexOf(m1), MONTHS.indexOf(m2)] : null;
+      if (months && (months[0] < 0 || months[1] < 0)) throw 0;
+      const days = [];
+      for (const grp of dayPart.split(",")) {
+        const r = grp.match(/^([A-Z][a-z])-([A-Z][a-z])$/);
+        if (r) {
+          const a = DAY_KEYS.indexOf(r[1]), b = DAY_KEYS.indexOf(r[2]);
+          if (a < 0 || b < 0) throw 0;
+          for (let i = a; ; i = (i + 1) % 7) { days.push(i); if (i === b) break; }
+        } else {
+          const i = DAY_KEYS.indexOf(grp);
+          if (i < 0) throw 0;
+          days.push(i);
+        }
+      }
+      if (/^(off|closed)$/i.test(timePart.trim())) { rules.push({ days, months, off: true }); continue; }
+      const intervals = timePart.split(",").map(t => {
+        const x = t.trim().match(/^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/);
+        if (!x) throw 0;
+        const s = +x[1] * 60 + +x[2], e = +x[3] * 60 + +x[4];
+        return [s, e];
+      });
+      rules.push({ days, months, intervals });
+    }
+    if (!rules.length) throw 0;
+  } catch { rules = null; }   // unparseable reads as "unknown", never as "closed"
+  hoursCache.set(spec, rules);
+  return rules;
+}
+
+// Always reason in Copenhagen time: the phone may be in another timezone while
+// you plan the trip, and "open now" has to mean open *there*.
+function cphNow() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Copenhagen", weekday: "short", hour: "2-digit", minute: "2-digit", month: "numeric", hour12: false,
+  }).formatToParts(new Date());
+  const get = t => parts.find(x => x.type === t).value;
+  const wd = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(get("weekday"));
+  return { day: wd, min: +get("hour") % 24 * 60 + +get("minute"), month: +get("month") - 1 };
+}
+
+const inMonths = (r, month) => !r.months || (r.months[0] <= r.months[1]
+  ? month >= r.months[0] && month <= r.months[1]
+  : month >= r.months[0] || month <= r.months[1]);
+
+// Intervals whose end <= start run past midnight, so a place open till 02:00 is
+// still open at 01:00 on what the clock calls the *next* day.
+function spansFor(rules, day, month) {
+  const out = [];
+  for (const r of rules) {
+    if (r.off || !inMonths(r, month)) continue;
+    if (r.days.includes(day)) for (const [s, e] of r.intervals) out.push([s, e <= s ? e + 1440 : e]);
+    const prev = (day + 6) % 7;
+    if (r.days.includes(prev)) for (const [s, e] of r.intervals) if (e <= s) out.push([s - 1440, e]);
+  }
+  return out;
+}
+
+// → null when we have nothing, else { open, closes, opens, opensDay }.
+function hoursState(p, when) {
+  if (!p.hours) return null;
+  const rules = parseHours(p.hours);
+  if (!rules) return null;
+  const now = when || cphNow();
+  for (const [s, e] of spansFor(rules, now.day, now.month)) {
+    if (now.min >= s && now.min < e) return { open: true, closes: e % 1440 };
+  }
+  for (let ahead = 0; ahead < 8; ahead++) {
+    const day = (now.day + ahead) % 7;
+    const cands = spansFor(rules, day, now.month)
+      .filter(([s]) => s >= 0 && (ahead > 0 || s > now.min)).sort((a, b) => a[0] - b[0]);
+    if (cands.length) return { open: false, opens: cands[0][0], opensDay: day, opensIn: ahead };
+  }
+  return { open: false };   // has hours, but never open in this month (seasonal)
+}
+
+const hhmm = m => String(Math.floor((m % 1440) / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+function hoursLabel(st) {
+  if (!st) return null;
+  if (st.open) return "Open · till " + hhmm(st.closes);
+  if (st.opens == null) return "Closed";
+  if (st.opensIn === 0) return "Closed · opens " + hhmm(st.opens);
+  return "Closed · " + (st.opensIn === 1 ? "opens tomorrow " : "opens " + DAY_LABEL[st.opensDay] + " ") + hhmm(st.opens);
+}
+// The week, as rows, for the detail sheet.
+function hoursWeek(p) {
+  const rules = parseHours(p.hours);
+  if (!rules) return [];
+  const month = cphNow().month;
+  return DAY_LABEL.map((lab, day) => {
+    const iv = [];
+    for (const r of rules) {
+      if (r.off || !inMonths(r, month) || !r.days.includes(day)) continue;
+      for (const [s, e] of r.intervals) iv.push(hhmm(s) + "–" + hhmm(e));
+    }
+    return { lab, txt: iv.length ? iv.join(", ") : "Closed" };
+  });
+}
+
 // ----- chips -----
+// Tapping a chip adds it to its row's set; tapping it again takes it out. The
+// leading chip ("All", "All areas", …) empties the row and lights up when it is.
+function toggle(set, k) { set.has(k) ? set.delete(k) : set.add(k); render(); }
 function buildChips() {
   const cc = document.getElementById("catchips");
   cc.innerHTML = "";
-  cc.appendChild(mkChip("All", () => { catFilter = null; render(); }, catFilter === null));
+  cc.appendChild(mkChip("All", () => { catFilters.clear(); render(); }, !catFilters.size));
   for (const [k, c] of Object.entries(CATS)) {
-    cc.appendChild(mkChip(c.emoji + " " + c.label, () => { catFilter = catFilter === k ? null : k; render(); }, catFilter === k));
+    if (OCCASIONS.includes(k)) continue;   // these live in their own row
+    cc.appendChild(mkChip(c.emoji + " " + c.label, () => toggle(catFilters, k), catFilters.has(k)));
   }
   const ac = document.getElementById("areachips");
   ac.innerHTML = "";
-  ac.appendChild(mkChip("All areas", () => { areaFilter = null; render(); }, areaFilter === null));
+  ac.appendChild(mkChip("All areas", () => { areaFilters.clear(); render(); }, !areaFilters.size));
   const areaCounts = {};
   for (const p of allPlaces()) areaCounts[effArea(p)] = (areaCounts[effArea(p)] || 0) + 1;
   const areas = Object.keys(areaCounts).sort((a, b) => areaCounts[b] - areaCounts[a] || a.localeCompare(b));
   for (const a of areas) {
-    ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => { areaFilter = areaFilter === a ? null : a; render(); }, areaFilter === a));
+    ac.appendChild(mkChip(`${a} (${areaCounts[a]})`, () => toggle(areaFilters, a), areaFilters.has(a)));
   }
   const sc = document.getElementById("statuschips");
   sc.innerHTML = "";
-  sc.appendChild(mkChip("Any status", () => { statusFilter = null; render(); }, statusFilter === null));
+  sc.appendChild(mkChip("Any status", () => { statusFilters.clear(); render(); }, !statusFilters.size));
   for (const [k, lab] of Object.entries(STATUSES)) {
-    sc.appendChild(mkChip(lab, () => { statusFilter = statusFilter === k ? null : k; render(); }, statusFilter === k));
+    sc.appendChild(mkChip(lab, () => toggle(statusFilters, k), statusFilters.has(k)));
+  }
+  const tc = document.getElementById("timechips");
+  tc.innerHTML = "";
+  tc.appendChild(mkChip("Any time", () => { timeMode = null; render(); }, timeMode === null));
+  tc.appendChild(mkChip("🕐 Open now", () => { timeMode = timeMode === "now" ? null : "now"; render(); }, timeMode === "now"));
+  tc.appendChild(mkChip("⏰ Plan a time", () => {
+    if (timeMode === "at") { timeMode = null; } else { const n = cphNow(); atDay = n.day; atMin = Math.round(n.min / 15) * 15; timeMode = "at"; }
+    render();
+  }, timeMode === "at"));
+  const plan = document.getElementById("timeplan");
+  plan.hidden = timeMode !== "at";
+  if (timeMode === "at") {
+    const dc = document.getElementById("daychips");
+    dc.innerHTML = "";
+    DAY_LABEL.forEach((lab, i) => dc.appendChild(mkChip(lab, () => { atDay = i; render(); }, atDay === i)));
+    const slider = document.getElementById("attime");
+    slider.value = atMin;
+    document.getElementById("attimelbl").textContent = `${DAY_LABEL[atDay]} ${hhmm(atMin)}`;
+    slider.oninput = () => { atMin = +slider.value; render(); };
+  }
+  const oc = document.getElementById("occasionchips");
+  oc.innerHTML = "";
+  oc.appendChild(mkChip("Any occasion", () => { occasionFilters.clear(); render(); }, !occasionFilters.size));
+  for (const k of OCCASIONS) {
+    const c = CATS[k];
+    const n = allPlaces().filter(p => effCats(p).includes(k)).length;
+    oc.appendChild(mkChip(`${c.emoji} ${c.label} (${n})`, () => toggle(occasionFilters, k), occasionFilters.has(k)));
   }
 }
 function mkChip(label, onclick, on) {
@@ -353,23 +577,105 @@ L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
   attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 20,
 }).addTo(map);
 let markers = [];
+// Emoji pins are much bigger than the dots they replaced, so they pile up over
+// the city centre when zoomed out. Shrink them until there's room to breathe.
+function pinSize() {
+  const z = map.getZoom();
+  return z >= 15 ? 27 : z >= 14 ? 24 : z >= 13 ? 21 : z >= 12 ? 18 : 15;
+}
+map.on("zoomend", renderMap);
 function renderMap() {
   markers.forEach(m => m.remove());
   markers = [];
   for (const p of filtered()) {
     const st = store.status(p.id);
     const c0 = CATS[effCats(p)[0]];
-    // want: plain category color · been👍: category color with green ring ·
-    // been👎: ghost gray · fav: bigger, bold ring
-    const opts =
-      st === "beenminus" ? { radius: 6, color: "#9aa3ad", fillColor: "#9aa3ad", fillOpacity: 0.2, weight: 1 } :
-      st === "beenplus"  ? { radius: 7, color: "#3f9b57", fillColor: c0.color, fillOpacity: 0.75, weight: 2.5 } :
-      st === "fav"       ? { radius: 9, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 3 } :
-                           { radius: 7, color: c0.color, fillColor: c0.color, fillOpacity: 0.85, weight: 1.5 };
-    const m = L.circleMarker([p.lat, p.lng], opts).addTo(map);
+    // The emoji says what the place is; the ring says where I'm at with it —
+    // to try: warm ring · been👍: green ring · been👎: gray and faded · fav: bigger, bold red.
+    const size = pinSize() + (st === "fav" ? 5 : 0);
+    const icon = L.divIcon({
+      className: "emojipin",
+      // Known-closed pins fade back rather than vanish — a map that empties out as
+      // the evening goes on is more disorienting than one that dims.
+      html: `<div class="pin ${st}${hoursState(p, whenSelected())?.open === false ? " shut" : ""}${offRoute(p) ? " faded" : ""}" style="--s:${size}px">${c0.emoji}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      popupAnchor: [0, -size / 2],
+    });
+    const m = L.marker([p.lat, p.lng], { icon, riseOnHover: true }).addTo(map);
     m.bindPopup(`<b>${esc(effName(p))}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
+}
+
+// ----- routes -----
+// A route is a line, so it gets its own layer above the pins rather than a marker.
+const routeLayer = L.layerGroup().addTo(map);
+let activeRoute = null;
+
+const MODE = {
+  bike: { emoji: "🚲", label: "Ride", color: "#b3502d", dash: null, pace: 14 },
+  walk: { emoji: "🚶", label: "Walk", color: "#46698f", dash: "1 10", pace: 4 },
+};
+// Length of the drawn line, so the number can never drift from the geometry. The line
+// is a coarse corridor rather than a traced street route, so this reads low — hence
+// "as drawn" in the label, and the ~20% allowance in the time estimate.
+function routeKm(r) {
+  let m = 0;
+  for (let i = 1; i < r.pts.length; i++) {
+    const [a, b] = [r.pts[i - 1], r.pts[i]], R = 6371000, d = x => x * Math.PI / 180;
+    const h = Math.sin(d(b[0] - a[0]) / 2) ** 2 +
+      Math.cos(d(a[0])) * Math.cos(d(b[0])) * Math.sin(d(b[1] - a[1]) / 2) ** 2;
+    m += 2 * R * Math.asin(Math.sqrt(h));
+  }
+  return m / 1000;
+}
+const routeMins = r => Math.round(routeKm(r) * 1.2 / MODE[r.mode].pace * 60);
+
+function drawRoute(r) {
+  routeLayer.clearLayers();
+  if (!r) return;
+  const m = MODE[r.mode];
+  L.polyline(r.pts, { color: m.color, weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round", dashArray: m.dash })
+    .addTo(routeLayer);
+  for (const [pt, txt] of [[r.pts[0], "start"], [r.pts[r.pts.length - 1], "end"]]) {
+    L.marker(pt, { icon: L.divIcon({ className: "routeend", html: `<div class="rend">${txt === "start" ? m.emoji : "🏁"}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }) })
+      .addTo(routeLayer);
+  }
+  map.fitBounds(L.latLngBounds(r.pts), { padding: [34, 34] });
+}
+function showRoute(id) {
+  activeRoute = activeRoute === id ? null : id;
+  renderMap();                                   // re-draws pins with the off-route ones faded
+  drawRoute(ROUTES.find(r => r.id === activeRoute));
+  renderRoutes();
+  if (activeRoute) {
+    document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x.dataset.v === "mapview"));
+    document.querySelectorAll(".view").forEach(x => x.classList.toggle("on", x.id === "mapview"));
+    document.body.classList.remove("nofilters");
+    setTimeout(() => { map.invalidateSize(); drawRoute(ROUTES.find(r => r.id === activeRoute)); }, 60);
+  }
+}
+// Pins that aren't on the active route fade back so the line reads.
+function offRoute(p) {
+  if (!activeRoute) return false;
+  const r = ROUTES.find(x => x.id === activeRoute);
+  return !!r && !r.stops.includes(p.id);
+}
+function renderRoutes() {
+  const el = document.getElementById("routeview");
+  el.innerHTML = `<div class="rwrap">${ROUTES.map(r => {
+    const m = MODE[r.mode], on = activeRoute === r.id;
+    const stops = r.stops.map(id => byId(id)).filter(Boolean);
+    return `<div class="rcard${on ? " on" : ""}" data-r="${r.id}">
+      <div class="rtop"><span class="rname">${m.emoji} ${esc(r.name)}</span>
+        <span class="rmeta">${routeKm(r).toFixed(1)} km as drawn · ~${routeMins(r)} min</span></div>
+      <div class="rnote">${esc(r.note)}</div>
+      <div class="rstops">${stops.map(p => `${effCats(p).map(c => CATS[c].emoji).join("")} ${esc(effName(p))}`).join(" · ")}</div>
+      <div class="rhint">${on ? "Showing on the map — tap to hide" : "Tap to show on the map"}</div>
+    </div>`;
+  }).join("")}</div>`;
+  el.querySelectorAll(".rcard").forEach(c => { c.onclick = () => showRoute(c.dataset.r); });
 }
 
 // ----- list -----
@@ -382,12 +688,16 @@ function renderList() {
     const cats = effCats(p);
     const div = document.createElement("div");
     div.className = "item";
+    const hs = hoursState(p, whenSelected());
+    const hlab = hoursLabel(hs);
     const sub = [cats.map(c => CATS[c].emoji).join("") + " " + effArea(p), p.rating ? "★ " + p.rating : null, p.price || null, effNote(p) || null].filter(Boolean).join(" · ");
     div.innerHTML = `<span class="dot" style="background:${CATS[cats[0]].color}"></span>
-      <span class="tx"><div class="nm">${esc(effName(p))}</div><div class="sub">${esc(sub)}</div></span>`;
+      <span class="tx"><div class="nm">${esc(effName(p))}</div>
+        ${hlab ? `<div class="hrs ${hs.open ? "open" : "shut"}">${esc(hlab)}</div>` : ""}
+        <div class="sub">${esc(sub)}</div></span>`;
     const badge = document.createElement("button");
     badge.className = "badge " + st;
-    badge.textContent = { want: "Want", beenplus: "👍", beenminus: "👎", fav: "❤️" }[st];
+    badge.textContent = { want: "❔", beenplus: "👍", beenminus: "👎", fav: "🎈" }[st];
     badge.onclick = (e) => { e.stopPropagation(); cycleStatus(p.id); };
     div.appendChild(badge);
     div.onclick = () => openSheet(p.id);
@@ -418,6 +728,16 @@ function openSheet(id) {
       ${Object.entries(STATUSES).map(([k, lab]) =>
         `<button class="${k === st ? "on " + k : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
+    ${(() => {
+      const hs = hoursState(p, whenSelected());
+      if (!hs) return `<p class="lbl">Opening hours</p><div class="hint">Not recorded yet — check Google Maps.</div>`;
+      const today = cphNow().day;
+      return `<p class="lbl">Opening hours</p>
+        <div class="hrsnow ${hs.open ? "open" : "shut"}">${esc(hoursLabel(hs))}</div>
+        <table class="hrsweek">${hoursWeek(p).map((r, i) =>
+          `<tr class="${i === today ? "today" : ""}"><td>${r.lab}</td><td>${esc(r.txt)}</td></tr>`).join("")}</table>
+        <div class="hint">${esc(p.hoursSrc || "")}${p.hoursChk ? " · checked " + esc(p.hoursChk) : ""} — confirm in Google Maps before a long trip.</div>`;
+    })()}
     <p class="lbl">Categories — tap to toggle</p>
     <div class="catgrid" id="catedit">
       ${Object.entries(CATS).map(([k, c]) =>
@@ -481,6 +801,7 @@ function openAddSheet() {
   const wrap = document.getElementById("sheetwrap");
   const sheet = document.getElementById("sheet");
   let newCats = [];
+  let newStatus = "want";
   let coords = null;
   sheet.innerHTML = `
     <h2>＋ Add a place</h2>
@@ -496,6 +817,11 @@ function openAddSheet() {
     <p class="lbl">Categories — tap all that apply</p>
     <div class="catgrid" id="np-cats">
       ${Object.entries(CATS).map(([k, c]) => `<button class="chip" data-c="${k}">${c.emoji} ${c.label}</button>`).join("")}
+    </div>
+    <p class="lbl">Experience</p>
+    <div class="statusseg" id="np-status">
+      ${Object.entries(STATUSES).map(([k, lab]) =>
+        `<button class="${k === "want" ? "on want" : ""}" data-s="${k}">${lab}</button>`).join("")}
     </div>
     <p class="lbl">Location — search the address, or use where you are now</p>
     <input type="text" id="np-addr" placeholder="e.g. Århusgade 48, København">
@@ -516,6 +842,14 @@ function openAddSheet() {
       <button class="btn ghost" id="closesheet">Cancel</button>
     </div>`;
   const locEl = sheet.querySelector("#np-loc");
+  const statusBtns = sheet.querySelectorAll("#np-status button");
+  statusBtns.forEach(b => {
+    b.onclick = () => {
+      newStatus = b.dataset.s;
+      statusBtns.forEach(x => { x.className = ""; });
+      b.className = "on " + newStatus;
+    };
+  });
   sheet.querySelectorAll("#np-cats .chip").forEach(b => {
     b.onclick = () => {
       const k = b.dataset.c;
@@ -657,8 +991,9 @@ function openAddSheet() {
     const name = sheet.querySelector("#np-name").value.trim();
     if (!name) { alert("Give it a name"); return; }
     if (!coords) { alert("Set a location first (Find address or I'm there now)"); return; }
+    const id = "c" + Date.now();
     store.data.custom.push({
-      id: "c" + Date.now(),
+      id,
       name,
       cats: newCats.length ? newCats : ["other"],
       area: sheet.querySelector("#np-area").value.trim() || "Indre By",
@@ -666,6 +1001,7 @@ function openAddSheet() {
       lat: coords.lat, lng: coords.lng,
       note: sheet.querySelector("#np-note").value.trim(),
     });
+    store.data.statuses[id] = newStatus;
     store.save(); closeSheet();
   };
   sheet.querySelector("#closesheet").onclick = closeSheet;
@@ -682,7 +1018,6 @@ const MOODS = {
   date:    { label: "💞 Date",           cats: ["date"] },
   culture: { label: "🖼️ Culture",        cats: ["museum", "sight", "stage", "shop", "books"] },
   away:    { label: "🌊 Out of town",    cats: ["trip"] },
-  parents: { label: "👪 Parents visiting", cats: ["parents"] },
 };
 // Time-aware default: mornings suggest coffee, afternoons culture, evenings dinner, nights drinks.
 function defaultMood() {
@@ -871,6 +1206,8 @@ document.querySelectorAll("nav button").forEach(b => {
     document.querySelectorAll(".view").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
     document.getElementById(b.dataset.v).classList.add("on");
+    // The chip rows filter places, not routes — reclaim the space on the Routes tab.
+    document.body.classList.toggle("nofilters", b.dataset.v === "routeview");
     if (b.dataset.v === "mapview") setTimeout(() => map.invalidateSize(), 60);
   };
 });
@@ -881,10 +1218,15 @@ function render() {
   buildChips();
   renderMap();
   renderList();
+  renderRoutes();
   const n = filtered().length;
   const sv = Object.values(store.data.statuses);
+  // While filtering on time, say how many places simply have no hours yet — otherwise
+  // a short list looks like "nothing is open" rather than "we don't know about most".
+  const noHours = timeMode ? allPlaces().filter(p => !hoursState(p, whenSelected())).length : 0;
   document.getElementById("counts").textContent =
-    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} ❤️`;
+    `${n} of ${allPlaces().length} places · ${sv.filter(s => s === "beenplus").length} 👍 · ${sv.filter(s => s === "beenminus").length} 👎 · ${sv.filter(s => s === "fav").length} 🎈`
+    + (noHours ? ` · ${noHours} without hours` : "");
   const rb = document.getElementById("restorebtn");
   const nh = store.data.hidden.length;
   rb.style.display = nh ? "" : "none";

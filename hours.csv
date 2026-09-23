@@ -1,0 +1,151 @@
+id,name,area,cats,hours,source,checked,note_hint
+p141,Alice Ice Cream & Coffee,Amager,bakery cafe dessert,Mo-Fr 08:00-17:00; Sa-Su 09:00-17:00,alicecph.dk,2026-09,Croissants and kouign-amann sell out by noon
+p122,Andersen & Maillard,Nørrebro,cafe bakery,Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00,andersenmaillard.dk,2026-09,
+p36,Annettes Bagel Point,Frederiksberg,bakery,Mo-Sa 08:30-17:00; Su 10:00-16:00,yelp.com,2026-09,trades as The Bagel Co at this address
+p143,Apotek 57,Indre By,bakery cafe shop,Mo-Fr 08:00-16:00; Sa-Su 09:00-16:00,framacph.com,2026-09,"Daily 8–16, weekends from 9"
+p27,Atelier September,Frederiksberg,cafe,Mo-Fr 07:30-18:00; Sa-Su 08:00-17:00,cafeatelierseptember.com,2026-09,
+p139,Bageriet Benji,Nørrebro,bakery,Mo-Fr 08:00-17:00; Sa-Su 09:00-17:00,falstaff.com,2026-09,
+p125,Café Arrebo,Nørrebro,cafe,Mo-Fr 07:30-19:00; Sa-Su 09:00-19:00,visitcopenhagen.com,2026-09,
+p28,Café Hjørnet,Frederiksberg,cafe,,,,"NO HOURS PUBLISHED — old-style bodega, nothing online"
+p103,Cafe Væksthuset,Frederiksberg,cafe,May-Sep Mo-Fr 10:00-16:30,yelp.com,2026-09,
+p133,Cakenhagen,Indre By,bakery dessert,Mo-Fr 12:00-16:00,nimb.dk,2026-09,year-round Vesterbrogade 1 room; the Tivoli one follows the park season
+p70,Coco Hotel,Vesterbro,cafe,Mo-We 07:00-22:30; Th 07:00-23:30; Fr-Sa 07:30-24:00; Su 07:30-22:30,coco-hotel.com,2026-09,
+p69,Coffee Collective Jægersborggade,Nørrebro,cafe,Mo-Fr 07:00-19:00; Sa-Su 08:00-19:00,coffeecollective.dk,2026-09,
+p87,Coffee First,Vesterbro,cafe,Mo-Fr 07:30-20:00; Sa 09:30-17:00; Su off,coffee-first.dk,2026-09,
+p134,Conditori La Glace,Indre By,bakery dessert,Mo-Fr 08:30-18:00; Sa 09:00-18:00; Su 10:00-18:00,laglace.dk,2026-09,
+p82,Dal Forno,Frederiksberg,bakery,We-Th 14:00-21:00; Fr-Sa 14:00-21:30; Su 14:00-21:00; Mo-Tu off,instagram.com/dalfornodk,2026-09,from their Instagram new opening hours; an older directory disagrees
+p120,Darcy's Kaffe,Nørrebro,cafe,Mo-Fr 07:30-17:00; Sa-Su 09:00-16:30,darcyskaffe.dk,2026-09,
+p55,Emmerys,Frederiksberg,bakery,Mo-Fr 07:00-18:00; Sa-Su 07:00-17:00,emmerys.dk,2026-09,
+p132,Flere Fugle,Nordvest,bakery cafe,Mo-We 07:30-21:00; Th-Fr 07:30-23:30; Sa 08:00-23:30; Su 08:00-21:00,flerefugle.dk,2026-09,
+p78,Flindt & Ørsted,Indre By,cafe,Mo-Fr 09:00-22:00; Sa-Su 09:00-20:00,corner.inc,2026-09,
+p50,Funders,Indre By,bakery,Mo-Fr 07:30-16:00; Sa 10:00-15:00; Su off,funders.dk,2026-09,NO HOURS FOUND
+p119,Harbo Bar,Nørrebro,bar cafe,Mo-Th 09:00-24:00; Fr 09:00-02:00; Sa 09:30-02:00; Su 11:00-23:00,visitcopenhagen.com,2026-09,
+p75,Hart Bageri,Nørrebro,bakery,Mo-Su 08:00-18:00,migogkbh.dk,2026-09,Nørrebro branch (Julius Bloms Gade) — earlier value was the Frederiksberg branch
+p126,Heimdalsgade 22,Nørrebro,cafe,Mo-Fr 07:30-18:00; Sa-Su 09:00-18:00,visitcopenhagen.com,2026-09,
+p30,Ipsen & Co,Frederiksberg,cafe,Mo-Su 08:00-18:00,ipsenogco.dk,2026-09,
+p135,Jumbo Bakery & Eatery,Out of town,bakery,Mo-Fr 07:00-17:00; Sa-Su 08:00-16:00,jumboaarhus.com,2026-09,
+p127,Juno the Bakery,Østerbro,bakery,Tu-Sa 07:30-18:00; Su 07:30-16:00; Mo off,junothebakery.com,2026-09,Famous for the cardamom buns — expect a queue
+p118,KALA Bar,Nørrebro,cafe,Mo-Sa 08:00-17:00; Su 09:00-16:00,kalabar.dk,2026-09,
+p144,Kani,Frederiksberg,bakery cafe,Tu-Su 07:30-17:00; Mo off,kanibakery.com,2026-09,Closed Mondays
+p11,Kong Hans Bakery,Indre By,bakery,Mo-Su 07:30-18:00,konghansbakery.dk,2026-09,
+p145,Københavns Bageri,Vesterbro,bakery,Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00,carlsbergbyen.dk,2026-09,"Danish classics in a glass-walled open kitchen, by two ex-Noma bakers"
+p54,Le Mont Blanc,Frederiksberg,cafe,,,,"NO HOURS PUBLISHED — still trading but a pizzeria, not a café"
+p108,Lille Bakery,Refshaleøen,bakery cafe,We-Su 08:00-18:00; Mo-Tu off,refshaleoen.dk,2026-09,Arrive early — queues and things sell out
+p8,Litteraturhaus Cafe,Nørrebro,cafe,Mo-Fr 10:00-15:00,literaturhaus.dk,2026-09,
+p99,Original Coffee,Frederiksberg,cafe,Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00,originalcoffee.dk,2026-09,
+p98,Reinh Van Hauen,Frederiksberg,bakery,Mo-Th 06:30-18:00; Fr 06:30-18:30; Sa-Su 06:30-17:00,rvh.dk,2026-09,
+p66,Riccos Kaffebar,Nørrebro,cafe,Mo-Su 08:00-22:00,yelp.com,2026-09,
+p142,Riviera,Indre By,bakery cafe,Mo-Fr 08:00-16:00; Sa-Su 09:00-16:00,corner.inc,2026-09,
+p140,Rug,Vesterbro,bakery cafe,"Mo-Su 07:00-16:00,17:30-22:00",rugbakery.com,2026-09,
+p123,Sidecar,Nørrebro,cafe restaurant,Mo 08:00-16:00; Tu-We 08:00-22:30; Th 08:00-24:00; Fr 08:00-00:30; Sa 09:30-00:30; Su 09:30-22:30,yelp.com,2026-09,
+p131,Skt. Peders Bageri,Indre By,bakery,Mo-Fr 06:00-17:30; Sa 07:00-16:00; Su 08:00-14:00,openhours.dk,2026-09,sources disagreed; took the Danish opening-hours directory over two vaguer listings
+p137,Tír Bakery,Out of town,bakery,,,,no closing time exists — bakes Tue-Sun from 8 until sold out
+p136,Vesterports Bageri,Out of town,bakery,Mo-Th 06:00-17:30; Fr 06:00-18:00; Sa 06:00-14:00; Su 06:00-12:30,vesterportbageri.dk,2026-09,
+p51,12oz Vintage,Indre By,shop,,,,
+p23,Acem Meditation,Frederiksberg,other,,,,
+p129,Acem Meditation Center,Frederiksberg,spirit,,,,
+p72,Airtrix Trampolinpark,Nordhavn,other,,,,
+p42,Alice,Nørrebro,jazz,,,,
+p7,ark books,Nørrebro,books,,,,
+p13,Assistens Kirkegård,Nørrebro,sight,,,,
+p101,Aveny-T,Frederiksberg,stage,,,,
+p10,Berlin Bar,Frederiksberg,bar,,,,
+p22,Betty Nansen Teatret,Frederiksberg,stage,,,,
+p31,Beviamo,Østerbro,wine,,,,
+p39,bird : downtown,Indre By,jazz,,,,
+p63,bird : uptown,Frederiksberg,jazz,,,,
+p61,Bocca Alimentari,Indre By,restaurant,,,,
+p38,Bodega Danza,Vesterbro,bar,,,,
+p1,Bootleggers Craft Beer Bar,Frederiksberg,bar,,,,
+p124,BRUS,Nørrebro,bar,,,,
+p130,Buddhistisk Center København,Østerbro,spirit,,,,Diamond Way Buddhist center (Karma Kagyu) — lectures and open meditations
+p114,Charlie's Bar,Indre By,bar,,,,Open till 1 AM
+p62,Chávez Mexican Kitchen,Frederiksberg,restaurant,,,,
+p112,Christiania Jazz Club,Christiania,jazz,,,,"Cosy live music venue with jazz nights, open till 2 AM"
+p77,Cinemateket,Indre By,stage,,,,
+p89,Club 34,Vesterbro,bar,,,,
+p15,Cold Hawaii,Out of town,trip,,,,
+p44,Copenhagen Contemporary,Refshaleøen,museum,,,,
+p18,Cork Vinbar,Frederiksberg,wine,,,,
+p86,Curfew,Vesterbro,bar,,,,
+p48,Danish Architecture Center,Indre By,museum,,,,
+p2,Den Anden Side,Indre By,club,,,,
+p43,Den Vandrette,Indre By,wine,,,,
+p105,Department of Economics (KU),Indre By,other,,,,
+p35,Det Lille Øresund,Vesterbro,bar,,,,
+p45,Det Ny Teater,Vesterbro,stage,,,,
+p100,Dosa Bar,Frederiksberg,restaurant,,,,
+p19,Dropped pin (Frederiksberg),Frederiksberg,other,,,,
+p104,Dropped pin (South Africa?),Out of town,other,,,,
+p25,Dyssebroen,Christiania,sight,,,,
+p90,Döner Corner,Vesterbro,street,,,,
+p59,DØP Amagertorv,Indre By,street,,,,
+p57,DØP Købmagergade,Indre By,street,,,,
+p9,Edison-scenen,Frederiksberg,stage,,,,
+p84,Falernum,Frederiksberg,wine,,,,
+p71,Falkonersalen,Frederiksberg,jazz,,,,
+p5,FAMO CARNE,Vesterbro,restaurant,,,,
+p96,Frederik VI,Frederiksberg,bar,,,,
+p106,Frederiksberg Chokolade,Frederiksberg,dessert shop,,,,
+p47,Gaia Cocktails,Indre By,bar,,,,
+p24,Gallerie Lorien,Frederiksberg,museum,,,,
+p80,Gasoline Grill,Vesterbro,street,,,,
+p58,Green Island CPH,Vesterbro,sight,,,,
+p4,Hangaren,Refshaleøen,club,,,,
+p83,Helge's Ost,Frederiksberg,shop,,,,
+p110,Hvide Lam (White Lamb),Indre By,bar jazz,,,,"Cheap, open late (1 AM)"
+p94,Iki Sushi,Frederiksberg,restaurant,,,,
+p56,Isoteket Stefansgade,Nørrebro,dessert,,,,
+p46,Isoteket Vesterbro,Vesterbro,dessert,,,,
+p16,Issehoved,Out of town,trip,,,,
+p26,Jazz Cup,Indre By,jazz,,,,
+p111,Jazzhus Montmartre,Indre By,jazz,,,,Opens 6 pm; book ahead
+p60,Kcal Frederiksberg,Frederiksberg,restaurant,,,,
+p14,Kølsters Tolv Haner,Nørrebro,bar,,,,
+p107,La Banchina,Refshaleøen,restaurant wine,,,,Gets busy; go early for a sunny pier spot
+p81,La Fiesta Mexicana,Frederiksberg,restaurant,,,,
+p41,La Fontaine,Indre By,jazz,,,,"Copenhagen's oldest jazz bar, late jam sessions"
+p33,La Fromagerie,Østerbro,shop,,,,
+p138,Lago,Nørrebro,wine restaurant,,,,"Natural wine bar & restaurant by the lakes — Tue–Sat from 4 PM, walk-ins"
+p65,Loca's Loco,Frederiksberg,restaurant,,,,
+p102,Louisiana Museum of Modern Art,Out of town,trip museum,,,,
+p29,Melee,Frederiksberg,restaurant,,,,
+p113,Mojo,Indre By,bar jazz,,,,"Live blues & jazz every night, open till 5 AM"
+p76,Mucki Bar,Nørrebro,bar,,,,
+p49,Museum of Copenhagen,Indre By,museum,,,,
+p17,Møns Klint,Out of town,trip,,,,
+p53,Nordisk Film Cinemas Falconer,Frederiksberg,stage,,,,
+p67,OAKBERRY Açaí,Frederiksberg,dessert,,,,
+p121,Omar,Nørrebro,restaurant wine,,,,
+p116,Operaparken,Christianshavn,sight,,,,Open till 11 PM
+p79,Osteria 16,Vesterbro,restaurant,,,,
+p85,Otto,Frederiksberg,wine,,,,
+p37,Paloma Vermuteria,Nørrebro,wine,,,,
+p95,Pizzicato,Frederiksberg,restaurant,,,,
+p88,Planetarium,Vesterbro,museum,,,,
+p117,Pompette,Nørrebro,wine,,,,
+p3,Poolen,Refshaleøen,jazz,,,,
+p92,Restaurant Polly,Frederiksberg,restaurant,,,,
+p34,Riesen Bar,Vesterbro,bar,,,,
+p32,ROOTS Vin Bar & Butik,Østerbro,wine,,,,
+p64,Scarpetta,Nørrebro,restaurant,,,,
+p128,Slurp Ramen Joint,Indre By,restaurant,,,,"Copenhagen's ramen spot on Nansensgade — go early, queues"
+p93,Sound Station,Frederiksberg,shop,,,,
+p115,Spidsroden,Nørrebro,grocery wine,,,,Closes 7 PM
+p74,Stefans Kiosk,Nørrebro,other,,,,
+p6,SUPeR bookstore,Nørrebro,books,,,,
+p109,Søhesten,Indre By,bar jazz,,,,Live jazz Wednesdays and Thursdays — arrive early for seats
+p20,Søpavillonen,Indre By,club,,,,
+p40,The Barking Dog,Nørrebro,bar,,,,
+p21,Toldboden,Østerbro,restaurant,,,,
+p73,Unnamed pin (The Lakes),Indre By,other,,,,
+p52,Unnamed pin (Vesterbro),Vesterbro,other,,,,
+p12,Veranda,Nørrebro,wine,,,,
+p91,Vesterbro's Original Burger,Vesterbro,street,,,,
+p68,Væskebalancen Blågårdsgade,Nørrebro,bar,,,,
+p97,Wedo Frederiksberg,Frederiksberg,restaurant,,,,
+p146,Hanstholm,Out of town,trip,,,,not a venue — no hours
+p147,Åbuen,Nørrebro,sight,,,,not a venue — no hours
+p148,Cykelslangen,Vesterbro,sight,,,,not a venue — no hours
+p149,IKEA København (tagpark),Vesterbro,sight shop,,,,store hours not checked
+p150,Amager Fælled,Amager,sight,,,,not a venue — no hours
