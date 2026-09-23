@@ -8,6 +8,10 @@ A single-page web app, no build step, no backend:
   The five chip rows — type, area, status, occasion, time — each take any number of picks: choices
   within a row are OR'd, and the rows narrow each other (cafés *or* bakeries, in Nørrebro).
   The first chip in a row ("All", "All areas", …) clears that row.
+- **Routes**: `ROUTES` at the bottom of `places.js` — rides and walks, each with a `pts` polyline
+  and `stops` (place ids). The **🧭 Routes** tab lists them; tapping one draws it on the map, fits the
+  view and fades the pins that aren't on it. Distance is computed from `pts`, never hand-written, and
+  labelled "as drawn" because the line is a hand-traced corridor rather than a street-level route.
 - **Opening hours**: `hours` on a place uses [OSM `opening_hours`](https://wiki.openstreetmap.org/wiki/Key:opening_hours)
   syntax (`Tu-Su 07:30-17:00; Mo off`), with `hoursSrc`/`hoursChk` recording where it came from and when.
   **[hours.csv](hours.csv)** is the editable source — fill a row there and re-merge. Always evaluated in

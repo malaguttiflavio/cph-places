@@ -136,6 +136,7 @@
   .hrs.open, .hrsnow.open { color: var(--been); }
   .hrs.shut, .hrsnow.shut { color: var(--muted); }
   .emojipin .pin.shut { opacity: 0.38; }
+  .emojipin .pin.faded { opacity: 0.16; }
   .hrsnow { font-size: 14.5px; font-weight: 600; margin: 2px 0 6px; }
   .hrsweek { border-collapse: collapse; font-size: 13.5px; width: 100%; max-width: 280px; }
   .hrsweek td { padding: 2px 0; color: var(--muted); }
@@ -145,6 +146,26 @@
   #timeslider { display: flex; align-items: center; gap: 10px; }
   #timeslider input { flex: 1; accent-color: var(--accent); }
   #attimelbl { font-size: 13.5px; font-weight: 600; min-width: 74px; text-align: right; }
+  /* routes */
+  body.nofilters .chiprow, body.nofilters #counts, body.nofilters #timeplan { display: none; }
+  .rwrap { padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); }
+  .rcard {
+    background: var(--panel); border: 1.5px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .rcard.on { border-color: var(--accent); }
+  .rtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rname { font-weight: 600; font-size: 15.5px; }
+  .rmeta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .rnote { color: var(--ink); font-size: 13.5px; margin: 5px 0 6px; }
+  .rstops { color: var(--muted); font-size: 12.5px; }
+  .rhint { color: var(--accent); font-size: 12.5px; margin-top: 7px; }
+  .routeend { background: none; border: none; }
+  .rend {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--panel);
+    border: 2px solid var(--accent); display: flex; align-items: center;
+    justify-content: center; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
   .leaflet-popup-content { font: 14px/1.4 -apple-system, sans-serif; margin: 10px 12px; }
   .leaflet-popup-content b { font-size: 15px; }
   .plink { color: var(--accent); font-weight: 600; text-decoration: none; }
@@ -175,6 +196,7 @@
 <main>
   <div class="view on" id="mapview"><div id="map"></div></div>
   <div class="view" id="listview"></div>
+  <div class="view" id="routeview"></div>
   <div class="view" id="tonightview">
     <div id="tonight">
       <div class="chiprow" id="moodchips" style="justify-content:center;flex-wrap:wrap;overflow:visible;"></div>
@@ -198,6 +220,7 @@
 <nav>
   <button data-v="mapview" class="on"><span class="ic">🗺️</span>Map</button>
   <button data-v="listview"><span class="ic">📋</span>List</button>
+  <button data-v="routeview"><span class="ic">🧭</span>Routes</button>
   <button data-v="tonightview"><span class="ic">🎲</span>Tonight</button>
 </nav>
 
@@ -574,7 +597,7 @@ function renderMap() {
       className: "emojipin",
       // Known-closed pins fade back rather than vanish — a map that empties out as
       // the evening goes on is more disorienting than one that dims.
-      html: `<div class="pin ${st}${hoursState(p, whenSelected())?.open === false ? " shut" : ""}" style="--s:${size}px">${c0.emoji}</div>`,
+      html: `<div class="pin ${st}${hoursState(p, whenSelected())?.open === false ? " shut" : ""}${offRoute(p) ? " faded" : ""}" style="--s:${size}px">${c0.emoji}</div>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
       popupAnchor: [0, -size / 2],
@@ -583,6 +606,76 @@ function renderMap() {
     m.bindPopup(`<b>${esc(effName(p))}</b><br>${effCats(p).map(c => CATS[c].emoji + " " + CATS[c].label).join(" · ")}${p.rating ? " · ★ " + p.rating : ""}<br><a class="plink" href="javascript:openSheet('${p.id}')">Details →</a>`);
     markers.push(m);
   }
+}
+
+// ----- routes -----
+// A route is a line, so it gets its own layer above the pins rather than a marker.
+const routeLayer = L.layerGroup().addTo(map);
+let activeRoute = null;
+
+const MODE = {
+  bike: { emoji: "🚲", label: "Ride", color: "#b3502d", dash: null, pace: 14 },
+  walk: { emoji: "🚶", label: "Walk", color: "#46698f", dash: "1 10", pace: 4 },
+};
+// Length of the drawn line, so the number can never drift from the geometry. The line
+// is a coarse corridor rather than a traced street route, so this reads low — hence
+// "as drawn" in the label, and the ~20% allowance in the time estimate.
+function routeKm(r) {
+  let m = 0;
+  for (let i = 1; i < r.pts.length; i++) {
+    const [a, b] = [r.pts[i - 1], r.pts[i]], R = 6371000, d = x => x * Math.PI / 180;
+    const h = Math.sin(d(b[0] - a[0]) / 2) ** 2 +
+      Math.cos(d(a[0])) * Math.cos(d(b[0])) * Math.sin(d(b[1] - a[1]) / 2) ** 2;
+    m += 2 * R * Math.asin(Math.sqrt(h));
+  }
+  return m / 1000;
+}
+const routeMins = r => Math.round(routeKm(r) * 1.2 / MODE[r.mode].pace * 60);
+
+function drawRoute(r) {
+  routeLayer.clearLayers();
+  if (!r) return;
+  const m = MODE[r.mode];
+  L.polyline(r.pts, { color: m.color, weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round", dashArray: m.dash })
+    .addTo(routeLayer);
+  for (const [pt, txt] of [[r.pts[0], "start"], [r.pts[r.pts.length - 1], "end"]]) {
+    L.marker(pt, { icon: L.divIcon({ className: "routeend", html: `<div class="rend">${txt === "start" ? m.emoji : "🏁"}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] }) })
+      .addTo(routeLayer);
+  }
+  map.fitBounds(L.latLngBounds(r.pts), { padding: [34, 34] });
+}
+function showRoute(id) {
+  activeRoute = activeRoute === id ? null : id;
+  renderMap();                                   // re-draws pins with the off-route ones faded
+  drawRoute(ROUTES.find(r => r.id === activeRoute));
+  renderRoutes();
+  if (activeRoute) {
+    document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x.dataset.v === "mapview"));
+    document.querySelectorAll(".view").forEach(x => x.classList.toggle("on", x.id === "mapview"));
+    document.body.classList.remove("nofilters");
+    setTimeout(() => { map.invalidateSize(); drawRoute(ROUTES.find(r => r.id === activeRoute)); }, 60);
+  }
+}
+// Pins that aren't on the active route fade back so the line reads.
+function offRoute(p) {
+  if (!activeRoute) return false;
+  const r = ROUTES.find(x => x.id === activeRoute);
+  return !!r && !r.stops.includes(p.id);
+}
+function renderRoutes() {
+  const el = document.getElementById("routeview");
+  el.innerHTML = `<div class="rwrap">${ROUTES.map(r => {
+    const m = MODE[r.mode], on = activeRoute === r.id;
+    const stops = r.stops.map(id => byId(id)).filter(Boolean);
+    return `<div class="rcard${on ? " on" : ""}" data-r="${r.id}">
+      <div class="rtop"><span class="rname">${m.emoji} ${esc(r.name)}</span>
+        <span class="rmeta">${routeKm(r).toFixed(1)} km as drawn · ~${routeMins(r)} min</span></div>
+      <div class="rnote">${esc(r.note)}</div>
+      <div class="rstops">${stops.map(p => `${effCats(p).map(c => CATS[c].emoji).join("")} ${esc(effName(p))}`).join(" · ")}</div>
+      <div class="rhint">${on ? "Showing on the map — tap to hide" : "Tap to show on the map"}</div>
+    </div>`;
+  }).join("")}</div>`;
+  el.querySelectorAll(".rcard").forEach(c => { c.onclick = () => showRoute(c.dataset.r); });
 }
 
 // ----- list -----
@@ -1113,6 +1206,8 @@ document.querySelectorAll("nav button").forEach(b => {
     document.querySelectorAll(".view").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
     document.getElementById(b.dataset.v).classList.add("on");
+    // The chip rows filter places, not routes — reclaim the space on the Routes tab.
+    document.body.classList.toggle("nofilters", b.dataset.v === "routeview");
     if (b.dataset.v === "mapview") setTimeout(() => map.invalidateSize(), 60);
   };
 });
@@ -1123,6 +1218,7 @@ function render() {
   buildChips();
   renderMap();
   renderList();
+  renderRoutes();
   const n = filtered().length;
   const sv = Object.values(store.data.statuses);
   // While filtering on time, say how many places simply have no hours yet — otherwise

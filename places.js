@@ -150,8 +150,37 @@ const PLACES = [
   { id: "p144", name: "Kani", cats: ["bakery", "cafe"], area: "Frederiksberg", address: "Vesterbrogade 196, 1800 Frederiksberg C", lat: 55.6720, lng: 12.5340, hours: "Tu-Su 07:30-17:00; Mo off", hoursSrc: "kanibakery.com", hoursChk: "2026-09", note: "Danish pastries recast with unexpected flavours — the 'Cardi B' cardamom bun, savoury ramson cream cheese ones. Closed Mondays." },
   { id: "p145", name: "Københavns Bageri", cats: ["bakery"], area: "Vesterbro", address: "Flaskehalsen 22, 1799 København V (Carlsberg Byen)", lat: 55.6655, lng: 12.5370, hours: "Mo-Fr 07:00-18:00; Sa-Su 08:00-18:00", hoursSrc: "carlsbergbyen.dk", hoursChk: "2026-09", note: "Danish classics in a glass-walled open kitchen, by two ex-Noma bakers. Cinnamon rolls and pain au chocolat." },
   { id: "p146", name: "Hanstholm", cats: ["trip"], area: "Out of town", address: "7730 Hanstholm", lat: 57.1178, lng: 8.6206, note: "Good for surfing — the northern end of the Cold Hawaii coast in Thy, about 12 km up the coast from Klitmøller. Works best on a bigger swell." },
-  { id: "p147", name: "Åbuen", cats: ["sight"], area: "Nørrebro", address: "Den Grønne Sti over Ågade, 2200 København", lat: 55.6902, lng: 12.5360, note: "The curved steel cycle bridge over Ågade (Dissing+Weitling, 2008) — 65 m, no traffic light, Frederiksberg on one side and Nørrebro on the other. RIDE from Frederiksberg Allé: north onto Den Grønne Sti, sail over Åbuen, then the old railway cutting through Nørrebroparken and up to Stefansgade. ~3.5 km each way, flat and car-free almost throughout, 20 min at a slow pace. Stops on the way: Coffee Collective Jægersborggade, then Hart Bageri and Isoteket, both on the Stefansgade corner." },
-  { id: "p148", name: "Cykelslangen", cats: ["sight"], area: "Vesterbro", address: "Bernhard Bangs Allé / Fisketorvet, 1560 København V", lat: 55.6628, lng: 12.5650, note: "The orange Bicycle Snake — 220 m of elevated cycle track curling over Gasværkshavnen from Kalvebod Brygge to Havneholmen (Dissing+Weitling, 2014; same architects as Åbuen). RIDE from Frederiksberg Allé: east through Vesterbro to Dybbølsbro, up to IKEA's rooftop park, down the Snake, over Bryggebroen and along Islands Brygge harbour front to Amager Fælled. ~4.5 km each way, flat, and the middle stretch is the best cycling in the city." },
+  { id: "p147", name: "Åbuen", cats: ["sight"], area: "Nørrebro", address: "Den Grønne Sti over Ågade, 2200 København", lat: 55.6902, lng: 12.5360, note: "The curved steel cycle bridge over Ågade (Dissing+Weitling, 2008) — 65 m, no traffic light, Frederiksberg on one side and Nørrebro on the other. RIDE from Frederiksberg Allé: north onto Den Grønne Sti, sail over Åbuen, then the old railway cutting through Nørrebroparken and up to Stefansgade. Flat and car-free almost throughout — see the Routes tab for distance. Stops on the way: Coffee Collective Jægersborggade, then Hart Bageri and Isoteket, both on the Stefansgade corner." },
+  { id: "p148", name: "Cykelslangen", cats: ["sight"], area: "Vesterbro", address: "Bernhard Bangs Allé / Fisketorvet, 1560 København V", lat: 55.6628, lng: 12.5650, note: "The orange Bicycle Snake — 220 m of elevated cycle track curling over Gasværkshavnen from Kalvebod Brygge to Havneholmen (Dissing+Weitling, 2014; same architects as Åbuen). RIDE from Frederiksberg Allé: east through Vesterbro to Dybbølsbro, up to IKEA's rooftop park, down the Snake, over Bryggebroen and along Islands Brygge harbour front to Amager Fælled. Flat, and the middle stretch is the best cycling in the city." },
   { id: "p149", name: "IKEA København (tagpark)", cats: ["sight", "shop"], area: "Vesterbro", address: "Dybbølsbro 4, 1577 København V", lat: 55.6645, lng: 12.5630, note: "Worth it for the rooftop park, not the meatballs — 19 m up, 18,000 plants over 60% of the roof, and a view across the harbour. Planted with species surveyed from Kalvebod Brygge and Amager Fælled. On the way to the Snake; ~800 bike spaces." },
   { id: "p150", name: "Amager Fælled", cats: ["sight"], area: "Amager", address: "Amager Fælled, 2300 København S", lat: 55.6570, lng: 12.5770, note: "Big scrubby wild meadow ten minutes from the centre — birds, ponds, old fortifications, and no traffic. The end of the Cykelslangen ride; bring something to sit on." },
+  { id: "p151", name: "Kongens Have", cats: ["sight"], area: "Indre By", address: "Øster Voldgade 4A, 1350 København", lat: 55.6853, lng: 12.5793, note: "Denmark's oldest royal garden (Christian IV, 1606) wrapped around Rosenborg — long avenues, a rose garden, deckchairs in summer. Free, and the easiest sit-down in the middle of town." },
+];
+
+// Routes are lines, not points, so they live apart from PLACES. `pts` is the drawn
+// polyline — a hand-traced corridor, not turn-by-turn navigation — and `stops` are
+// the ids of places along it. Distances are computed from pts, never hand-written.
+const ROUTES = [
+  {
+    id: "r1", name: "Åbuen & Nørrebroparken", mode: "bike",
+    note: "Over the 2008 cycle bridge, then the old railway cutting through Nørrebroparken. Ends on the Stefansgade corner with a bakery and an ice cream shop on it.",
+    stops: ["p147", "p69", "p75", "p56"],
+    pts: [[55.6740, 12.5370], [55.6790, 12.5352], [55.6845, 12.5355], [55.6902, 12.5360],
+          [55.6925, 12.5400], [55.6952, 12.5440], [55.6956, 12.5441]],
+  },
+  {
+    id: "r2", name: "Cykelslangen to Amager Fælled", mode: "bike",
+    note: "Through Vesterbro to Dybbølsbro, up onto IKEA's rooftop park, down the Bicycle Snake and over the harbour to the wild meadow on Amager.",
+    stops: ["p149", "p148", "p150"],
+    pts: [[55.6740, 12.5370], [55.6700, 12.5480], [55.6660, 12.5590], [55.6645, 12.5630],
+          [55.6628, 12.5650], [55.6615, 12.5700], [55.6595, 12.5740], [55.6570, 12.5770]],
+  },
+  {
+    id: "r3", name: "Greenhouse, lakes & Kongens Have", mode: "walk",
+    note: "Frederiksberg Have and the greenhouse café, east across the lakes at Gyldenløvesgade, up the water to the Department of Economics, then down through Kongens Have to Nørreport. Metro home from there.",
+    stops: ["p103", "p20", "p105", "p151"],
+    pts: [[55.6740, 12.5370], [55.6790, 12.5390], [55.6809, 12.5405], [55.6805, 12.5480],
+          [55.6819, 12.5592], [55.6818, 12.5684], [55.6860, 12.5700], [55.6891, 12.5706],
+          [55.6870, 12.5760], [55.6853, 12.5793], [55.6832, 12.5714]],
+  },
 ];
