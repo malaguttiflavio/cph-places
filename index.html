@@ -573,11 +573,13 @@ function mkChip(label, onclick, on) {
 
 // ----- map -----
 const map = L.map("map", { zoomControl: false }).setView([55.6785, 12.5555], 13);
-// CARTO started watermarking keyless raster tiles with "API KEY REQUIRED" in Aug 2026,
-// so the basemap is OSM's own tiles: no key, no account, nothing to leak in a public repo.
-// They stop at z19, but maxNativeZoom lets Leaflet upscale so z20 still works as before.
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; OpenStreetMap contributors', maxNativeZoom: 19, maxZoom: 20,
+// CARTO started watermarking keyless raster tiles with "API KEY REQUIRED" in Aug 2026.
+// CyclOSM needs no key either, and renders cycle tracks, contours and bike parking —
+// which suits a map that now carries bike routes. Tiles are hosted by OpenStreetMap
+// France under their fair-use policy, and render natively to z20.
+L.tileLayer("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", {
+  subdomains: "abc", maxZoom: 20,
+  attribution: 'CyclOSM | Map data &copy; OpenStreetMap contributors · tiles courtesy of OpenStreetMap France',
 }).addTo(map);
 let markers = [];
 // Emoji pins are much bigger than the dots they replaced, so they pile up over
