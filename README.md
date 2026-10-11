@@ -12,6 +12,10 @@ A single-page web app, no build step, no backend:
   and `stops` (place ids). The **🧭 Routes** tab lists them; tapping one draws it on the map, fits the
   view and fades the pins that aren't on it. Distance is computed from `pts`, never hand-written, and
   labelled "as drawn" because the line is a hand-traced corridor rather than a street-level route.
+- **My location**: the round button on the map shows a blue dot with an accuracy ring and follows you.
+  Drag the map and it stops following (the dot stays); tap to recentre; tap again to turn it off.
+  The position stays in memory — never written to localStorage or synced — and the GPS pauses
+  while the app is in the background.
 - **Opening hours**: `hours` on a place uses [OSM `opening_hours`](https://wiki.openstreetmap.org/wiki/Key:opening_hours)
   syntax (`Tu-Su 07:30-17:00; Mo off`), with `hoursSrc`/`hoursChk` recording where it came from and when.
   **[hours.csv](hours.csv)** is the editable source — fill a row there and re-merge. Always evaluated in

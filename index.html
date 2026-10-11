@@ -52,6 +52,27 @@
   .view { position: absolute; inset: 0; display: none; }
   .view.on { display: block; }
   #map { height: 100%; }
+  /* my location */
+  #locbtn {
+    position: absolute; right: 12px; bottom: 30px; z-index: 1001;
+    width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--panel); color: var(--muted); display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.22); cursor: pointer; padding: 0;
+  }
+  #locbtn[data-state="on"]   { color: #2a7de1; }
+  #locbtn[data-state="free"] { color: #2a7de1; opacity: .75; }
+  #locbtn[data-state="busy"] svg { animation: locpulse 1s ease-in-out infinite; color: #2a7de1; }
+  @keyframes locpulse { 50% { opacity: .3; } }
+  #locmsg {
+    position: absolute; left: 12px; right: 70px; bottom: 34px; z-index: 1001;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 12px;
+    padding: 8px 12px; font-size: 13.5px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .medot { background: none; border: none; }
+  .medot div {
+    width: 18px; height: 18px; border-radius: 50%; background: #2a7de1;
+    border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15), 0 1px 4px rgba(0,0,0,.35);
+  }
   #listview { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 14px 20px; }
   .item {
     display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin-bottom: 8px;
@@ -194,7 +215,12 @@
 <div id="counts"></div>
 
 <main>
-  <div class="view on" id="mapview"><div id="map"></div></div>
+  <div class="view on" id="mapview"><div id="map"></div>
+    <button id="locbtn" data-state="off" aria-label="Show my location" title="Show my location">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="3.5" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="locmsg" hidden></div>
+  </div>
   <div class="view" id="listview"></div>
   <div class="view" id="routeview"></div>
   <div class="view" id="tonightview">
@@ -579,7 +605,7 @@ const map = L.map("map", { zoomControl: false }).setView([55.6785, 12.5555], 13)
 // France under their fair-use policy, and render natively to z20.
 L.tileLayer("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", {
   subdomains: "abc", maxZoom: 20,
-  attribution: 'CyclOSM | Map data &copy; OpenStreetMap contributors · tiles courtesy of OpenStreetMap France',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://www.cyclosm.org">CyclOSM</a> by OSM France',
 }).addTo(map);
 let markers = [];
 // Emoji pins are much bigger than the dots they replaced, so they pile up over
@@ -640,6 +666,7 @@ const routeMins = r => Math.round(routeKm(r) * 1.2 / MODE[r.mode].pace * 60);
 function drawRoute(r) {
   routeLayer.clearLayers();
   if (!r) return;
+  stopFollowing();   // otherwise the next GPS fix pans away from the route you just opened
   const m = MODE[r.mode];
   L.polyline(r.pts, { color: m.color, weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round", dashArray: m.dash })
     .addTo(routeLayer);
@@ -682,6 +709,82 @@ function renderRoutes() {
   }).join("")}</div>`;
   el.querySelectorAll(".rcard").forEach(c => { c.onclick = () => showRoute(c.dataset.r); });
 }
+
+// ----- my location -----
+// The position lives in memory only: never written to localStorage, never synced.
+// Tap once to find and follow you; drag the map and it stops following (the dot
+// stays); tap again to recentre; tap while centred to switch it off.
+const locBtn = document.getElementById("locbtn"), locMsg = document.getElementById("locmsg");
+const LOC_OPTS = { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 };
+let locWatch = null, locPaused = false, locFollow = false, locLast = null, locDot = null, locRing = null;
+
+function locNote(text) {
+  locMsg.textContent = text;
+  locMsg.hidden = false;
+  setTimeout(() => { if (locMsg.textContent === text) locMsg.hidden = true; }, 5000);
+}
+function onFix(pos) {
+  const ll = [pos.coords.latitude, pos.coords.longitude], acc = pos.coords.accuracy;
+  const first = !locLast;
+  locLast = ll;
+  if (!locDot) {
+    locRing = L.circle(ll, { radius: acc, color: "#2a7de1", weight: 1, opacity: 0.4, fillColor: "#2a7de1", fillOpacity: 0.12, interactive: false }).addTo(map);
+    locDot = L.marker(ll, { icon: L.divIcon({ className: "medot", html: "<div></div>", iconSize: [18, 18], iconAnchor: [9, 9] }), interactive: false, zIndexOffset: 1000 }).addTo(map);
+  } else {
+    locDot.setLatLng(ll);
+    locRing.setLatLng(ll).setRadius(acc);
+  }
+  if (first) map.setView(ll, Math.max(map.getZoom(), 16));
+  else if (locFollow) map.panTo(ll);
+  locBtn.dataset.state = locFollow ? "on" : "free";
+}
+// Mid-watch errors are routine on a phone (indoors, tunnels, trees) and the next fix
+// usually follows within seconds, so only a refusal — or never getting a first fix —
+// ends the session. Otherwise keep showing the last known position.
+function onFail(err) {
+  if (err.code !== 1 && locLast) return;
+  stopLocate();
+  locNote(err.code === 1
+    ? "Location is blocked for this site — allow it in your browser or phone settings."
+    : "Couldn't find your location. Try again in a moment.");
+}
+function startLocate() {
+  if (!("geolocation" in navigator)) { locNote("This browser can't share your location."); return; }
+  locFollow = true;
+  locBtn.dataset.state = "busy";
+  locWatch = navigator.geolocation.watchPosition(onFix, onFail, LOC_OPTS);
+}
+function stopLocate() {
+  if (locWatch !== null) navigator.geolocation.clearWatch(locWatch);
+  locWatch = null; locPaused = false; locFollow = false; locLast = null;
+  if (locDot) { locDot.remove(); locRing.remove(); locDot = locRing = null; }
+  locBtn.dataset.state = "off";
+}
+function stopFollowing() {
+  if (locFollow && locLast) { locFollow = false; locBtn.dataset.state = "free"; }
+}
+locBtn.onclick = () => {
+  if (locWatch === null && !locPaused) return startLocate();
+  if (locLast && !locFollow) {
+    locFollow = true;
+    locBtn.dataset.state = "on";
+    map.setView(locLast, Math.max(map.getZoom(), 16));
+    return;
+  }
+  stopLocate();
+};
+// Dragging the map means you want to look somewhere else — stop chasing the dot.
+map.on("dragstart", stopFollowing);
+// Don't keep the GPS running while the app is in the background.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden" && locWatch !== null) {
+    navigator.geolocation.clearWatch(locWatch);
+    locWatch = null; locPaused = true;
+  } else if (document.visibilityState === "visible" && locPaused) {
+    locPaused = false;
+    locWatch = navigator.geolocation.watchPosition(onFix, onFail, LOC_OPTS);
+  }
+});
 
 // ----- list -----
 function renderList() {
