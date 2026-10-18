@@ -22,6 +22,11 @@ A single-page web app, no build step, no backend:
   `Europe/Copenhagen`, never device time, so "open now" is right while planning from another timezone.
   Places with no hours are shown as unknown and never guessed open; the counts line says how many.
   "🕐 Open now" filters to known-open, "⏰ Plan a time" scrubs to any day and hour.
+- **Cities**: the **CPH | BCN** pill in the title switches city. Each city has its own data file
+  ([places.js](places.js), [places-bcn.js](places-bcn.js)), neighbourhoods, routes, map centre and
+  timezone (`CITIES` in index.html). Statuses, notes and edits share one store keyed by place ID —
+  Barcelona IDs start with `b` so they can't collide — so sync and export cover both cities.
+  Places added in the app belong to the city you added them in; older ones are Copenhagen's.
 - **[places.js](places.js)** — the data: one entry per place (imported from a Google Maps saved list)
 - Your personal state (to try ❔ / been 👍👎 / favorite 🎈, notes, category edits, added/deleted places) lives in the browser's localStorage.
   On the map each place is its category's emoji; the ring around it is the status.

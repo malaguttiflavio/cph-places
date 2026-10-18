@@ -1,6 +1,6 @@
 // Minimal offline cache for the app shell (map tiles stay online-only).
 const CACHE = "cph-places-v1";
-const SHELL = ["./", "index.html", "places.js", "manifest.webmanifest"];
+const SHELL = ["./", "index.html", "places.js", "places-bcn.js", "manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));

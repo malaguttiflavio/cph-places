@@ -32,7 +32,13 @@
   }
   header { padding: 10px 14px 6px; flex: none; }
   .headrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  header h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 6px; }
+  .cityseg { display: inline-flex; background: var(--chip); border-radius: 999px; padding: 3px; }
+  .cityseg button {
+    border: none; background: none; color: var(--muted); font: inherit; font-size: 17px; font-weight: 700;
+    letter-spacing: 0; padding: 3px 11px; border-radius: 999px; cursor: pointer;
+  }
+  .cityseg button.on { background: var(--chip-on); color: var(--bg); }
   #addbtn {
     border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
     padding: 7px 13px; border-radius: 999px; cursor: pointer;
@@ -198,7 +204,7 @@
 
 <header>
   <div class="headrow">
-    <h1>CPH Places</h1>
+    <h1 id="citypick"><span class="cityseg"><button data-c="cph">CPH</button><button data-c="bcn">BCN</button></span> Places</h1>
     <button id="addbtn">＋ Add place</button>
   </div>
   <input id="search" type="search" placeholder="Search places, areas, notes…">
@@ -254,6 +260,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="places.js"></script>
+<script src="places-bcn.js"></script>
 <script>
 const CATS = {
   cafe:       { label: "Cafés",          emoji: "☕", color: "#a4753a" },
@@ -314,18 +321,51 @@ const AREA_ALIASES = {
   "københavn nv": "Nordvest",
 };
 
+// Barcelona at the level people actually talk about it: barri names inside Ciutat
+// Vella and the Eixample, districts beyond. Provisional — tuned once the list is in.
+const BCN_AREAS = [
+  "Barri Gòtic", "El Born", "El Raval", "Barceloneta", "Eixample", "Sant Antoni", "Gràcia",
+  "Poble-sec", "Montjuïc", "Sants", "Les Corts", "Sarrià-Sant Gervasi", "Horta-Guinardó",
+  "Poblenou", "Sant Andreu", "Nou Barris", "Out of town",
+];
+const BCN_ALIASES = {
+  "barri gòtic": "Barri Gòtic", "el gòtic": "Barri Gòtic", "gothic quarter": "Barri Gòtic",
+  "sant pere, santa caterina i la ribera": "El Born", "la ribera": "El Born", "el born": "El Born",
+  "el raval": "El Raval", "la barceloneta": "Barceloneta",
+  "l'eixample": "Eixample", "la dreta de l'eixample": "Eixample", "l'antiga esquerra de l'eixample": "Eixample",
+  "la nova esquerra de l'eixample": "Eixample", "la sagrada família": "Eixample", "el fort pienc": "Eixample",
+  "vila de gràcia": "Gràcia", "el camp d'en grassot i gràcia nova": "Gràcia", "la salut": "Gràcia", "vallcarca": "Gràcia",
+  "el poble-sec": "Poble-sec", "el poblenou": "Poblenou", "diagonal mar": "Poblenou", "la vila olímpica": "Poblenou",
+  "hostafrancs": "Sants", "la bordeta": "Sants", "pedralbes": "Les Corts",
+  "sarrià": "Sarrià-Sant Gervasi", "sant gervasi": "Sarrià-Sant Gervasi", "el guinardó": "Horta-Guinardó",
+};
+
+// Everything that differs between cities. Statuses, notes and category edits live in
+// one shared store keyed by place ID, so sync and export carry both cities as before.
+const CITIES = {
+  cph: { title: "CPH Places", center: [55.6785, 12.5555], zoom: 13, tz: "Europe/Copenhagen", cc: "dk,se,de",
+         areas: AREAS, aliases: AREA_ALIASES, places: () => PLACES, routes: () => ROUTES, label: "Copenhagen" },
+  bcn: { title: "BCN Places", center: [41.3874, 2.1686], zoom: 13, tz: "Europe/Madrid", cc: "es",
+         areas: BCN_AREAS, aliases: BCN_ALIASES, places: () => BCN_PLACES, routes: () => BCN_ROUTES, label: "Barcelona" },
+};
+let cityKey = "cph";
+try { if (CITIES[localStorage.getItem("cphPlacesCity")]) cityKey = localStorage.getItem("cphPlacesCity"); } catch {}
+const city = () => CITIES[cityKey];
+const cityRoutes = () => city().routes();
+
 // Map a raw place name onto the canonical list; null when there is no confident match.
 function normalizeArea(raw) {
   if (!raw) return null;
   const k = String(raw).trim().toLowerCase();
-  if (AREA_ALIASES[k]) return AREA_ALIASES[k];
-  const exact = AREAS.find(a => a.toLowerCase() === k);
+  const AL = city().aliases, AR = city().areas;
+  if (AL[k]) return AL[k];
+  const exact = AR.find(a => a.toLowerCase() === k);
   if (exact) return exact;
   // "Indre Østerbro, København" style strings — match on any contained area name.
-  const contained = AREAS.find(a => k.includes(a.toLowerCase()));
+  const contained = AR.find(a => k.includes(a.toLowerCase()));
   if (contained) return contained;
-  const alias = Object.keys(AREA_ALIASES).find(a => k.includes(a));
-  return alias ? AREA_ALIASES[alias] : null;
+  const alias = Object.keys(AL).find(a => k.includes(a));
+  return alias ? AL[alias] : null;
 }
 
 const store = {
@@ -354,11 +394,14 @@ if (Object.values(store.data.statuses).includes("been")) {
   store.save();
 }
 
-function allPlaces() { return PLACES.filter(p => !store.data.hidden.includes(p.id)).concat(store.data.custom); }
+function allPlaces() {
+  return city().places().filter(p => !store.data.hidden.includes(p.id))
+    .concat(store.data.custom.filter(p => (p.city || "cph") === cityKey));
+}
 function byId(id) { return allPlaces().find(x => x.id === id); }
 function effArea(p) {
   const o = store.data.areas[p.id];
-  return o || normalizeArea(p.area) || p.area || "Indre By";
+  return o || normalizeArea(p.area) || p.area || city().areas[0];
 }
 function setArea(p, area) {
   if (p.id.startsWith("c")) p.area = area;      // custom place: edit in place
@@ -393,7 +436,7 @@ const anyOf = (set, values) => !set.size || values.some(v => set.has(v));
 let query = "";
 // null = don't filter on time · "now" = open right now · "at" = open at the planned moment.
 let timeMode = null, atDay = 0, atMin = 12 * 60;
-const whenSelected = () => timeMode === "at" ? { day: atDay, min: atMin, month: cphNow().month } : cphNow();
+const whenSelected = () => timeMode === "at" ? { day: atDay, min: atMin, month: cityNow().month } : cityNow();
 
 function matches(p) {
   const cats = effCats(p);
@@ -465,11 +508,11 @@ function parseHours(spec) {
   return rules;
 }
 
-// Always reason in Copenhagen time: the phone may be in another timezone while
+// Always reason in the city's own time: the phone may be in another timezone while
 // you plan the trip, and "open now" has to mean open *there*.
-function cphNow() {
+function cityNow() {
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Copenhagen", weekday: "short", hour: "2-digit", minute: "2-digit", month: "numeric", hour12: false,
+    timeZone: city().tz, weekday: "short", hour: "2-digit", minute: "2-digit", month: "numeric", hour12: false,
   }).formatToParts(new Date());
   const get = t => parts.find(x => x.type === t).value;
   const wd = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(get("weekday"));
@@ -498,7 +541,7 @@ function hoursState(p, when) {
   if (!p.hours) return null;
   const rules = parseHours(p.hours);
   if (!rules) return null;
-  const now = when || cphNow();
+  const now = when || cityNow();
   for (const [s, e] of spansFor(rules, now.day, now.month)) {
     if (now.min >= s && now.min < e) return { open: true, closes: e % 1440 };
   }
@@ -523,7 +566,7 @@ function hoursLabel(st) {
 function hoursWeek(p) {
   const rules = parseHours(p.hours);
   if (!rules) return [];
-  const month = cphNow().month;
+  const month = cityNow().month;
   return DAY_LABEL.map((lab, day) => {
     const iv = [];
     for (const r of rules) {
@@ -566,7 +609,7 @@ function buildChips() {
   tc.appendChild(mkChip("Any time", () => { timeMode = null; render(); }, timeMode === null));
   tc.appendChild(mkChip("🕐 Open now", () => { timeMode = timeMode === "now" ? null : "now"; render(); }, timeMode === "now"));
   tc.appendChild(mkChip("⏰ Plan a time", () => {
-    if (timeMode === "at") { timeMode = null; } else { const n = cphNow(); atDay = n.day; atMin = Math.round(n.min / 15) * 15; timeMode = "at"; }
+    if (timeMode === "at") { timeMode = null; } else { const n = cityNow(); atDay = n.day; atMin = Math.round(n.min / 15) * 15; timeMode = "at"; }
     render();
   }, timeMode === "at"));
   const plan = document.getElementById("timeplan");
@@ -598,7 +641,7 @@ function mkChip(label, onclick, on) {
 }
 
 // ----- map -----
-const map = L.map("map", { zoomControl: false }).setView([55.6785, 12.5555], 13);
+const map = L.map("map", { zoomControl: false }).setView(city().center, city().zoom);
 // CARTO started watermarking keyless raster tiles with "API KEY REQUIRED" in Aug 2026.
 // CyclOSM needs no key either, and renders cycle tracks, contours and bike parking —
 // which suits a map that now carries bike routes. Tiles are hosted by OpenStreetMap
@@ -679,24 +722,25 @@ function drawRoute(r) {
 function showRoute(id) {
   activeRoute = activeRoute === id ? null : id;
   renderMap();                                   // re-draws pins with the off-route ones faded
-  drawRoute(ROUTES.find(r => r.id === activeRoute));
+  drawRoute(cityRoutes().find(r => r.id === activeRoute));
   renderRoutes();
   if (activeRoute) {
     document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x.dataset.v === "mapview"));
     document.querySelectorAll(".view").forEach(x => x.classList.toggle("on", x.id === "mapview"));
     document.body.classList.remove("nofilters");
-    setTimeout(() => { map.invalidateSize(); drawRoute(ROUTES.find(r => r.id === activeRoute)); }, 60);
+    setTimeout(() => { map.invalidateSize(); drawRoute(cityRoutes().find(r => r.id === activeRoute)); }, 60);
   }
 }
 // Pins that aren't on the active route fade back so the line reads.
 function offRoute(p) {
   if (!activeRoute) return false;
-  const r = ROUTES.find(x => x.id === activeRoute);
+  const r = cityRoutes().find(x => x.id === activeRoute);
   return !!r && !r.stops.includes(p.id);
 }
 function renderRoutes() {
   const el = document.getElementById("routeview");
-  el.innerHTML = `<div class="rwrap">${ROUTES.map(r => {
+  if (!cityRoutes().length) { el.innerHTML = `<div class="rwrap"><p class="rnote" style="color:var(--muted);text-align:center;margin-top:30px">No ${city().label} routes yet.</p></div>`; return; }
+  el.innerHTML = `<div class="rwrap">${cityRoutes().map(r => {
     const m = MODE[r.mode], on = activeRoute === r.id;
     const stops = r.stops.map(id => byId(id)).filter(Boolean);
     return `<div class="rcard${on ? " on" : ""}" data-r="${r.id}">
@@ -786,6 +830,25 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// ----- city -----
+// Switching city keeps type/status/occasion/time filters (they mean the same thing in
+// both cities) but drops neighbourhoods and any open route, which don't carry over.
+function setCity(k) {
+  if (k === cityKey || !CITIES[k]) return;
+  cityKey = k;
+  try { localStorage.setItem("cphPlacesCity", k); } catch {}
+  areaFilters.clear();
+  if (activeRoute) { activeRoute = null; drawRoute(null); }
+  stopFollowing();
+  map.setView(city().center, city().zoom);
+  render();
+}
+function syncCityPick() {
+  document.title = city().title;
+  document.querySelectorAll("#citypick button").forEach(b => b.classList.toggle("on", b.dataset.c === cityKey));
+}
+document.querySelectorAll("#citypick button").forEach(b => { b.onclick = () => setCity(b.dataset.c); });
+
 // ----- list -----
 function renderList() {
   const el = document.getElementById("listview");
@@ -811,7 +874,8 @@ function renderList() {
     div.onclick = () => openSheet(p.id);
     el.appendChild(div);
   }
-  if (!items.length) el.innerHTML = '<p style="color:var(--muted);text-align:center;margin-top:40px">Nothing matches — clear some filters.</p>';
+  if (!items.length) el.innerHTML = `<p style="color:var(--muted);text-align:center;margin-top:40px">${
+    allPlaces().length ? "Nothing matches — clear some filters." : `No ${city().label} places yet.`}</p>`;
 }
 function cycleStatus(id) {
   const order = ["want", "beenplus", "beenminus", "fav"];
@@ -839,7 +903,7 @@ function openSheet(id) {
     ${(() => {
       const hs = hoursState(p, whenSelected());
       if (!hs) return `<p class="lbl">Opening hours</p><div class="hint">Not recorded yet — check Google Maps.</div>`;
-      const today = cphNow().day;
+      const today = cityNow().day;
       return `<p class="lbl">Opening hours</p>
         <div class="hrsnow ${hs.open ? "open" : "shut"}">${esc(hoursLabel(hs))}</div>
         <table class="hrsweek">${hoursWeek(p).map((r, i) =>
@@ -853,7 +917,7 @@ function openSheet(id) {
     </div>
     <p class="lbl">Neighbourhood</p>
     <select id="areaedit">
-      ${AREAS.map(a => `<option value="${esc(a)}"${a === effArea(p) ? " selected" : ""}>${esc(a)}</option>`).join("")}
+      ${city().areas.map(a => `<option value="${esc(a)}"${a === effArea(p) ? " selected" : ""}>${esc(a)}</option>`).join("")}
     </select>
     <p class="lbl">My note</p>
     <textarea id="noteedit" placeholder="Who recommended it, what to order, date-worthy?…">${esc(effNote(p))}</textarea>
@@ -941,7 +1005,7 @@ function openAddSheet() {
     <p class="lbl">Neighbourhood</p>
     <select id="np-area">
       <option value="">— pick one —</option>
-      ${AREAS.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("")}
+      ${city().areas.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join("")}
     </select>
     <p class="lbl">Note (optional)</p>
     <textarea id="np-note" placeholder="Why is it on the list?"></textarea>
@@ -1080,7 +1144,7 @@ function openAddSheet() {
     if (!q) { locEl.textContent = "Type an address or name first"; return; }
     locEl.textContent = "Searching…";
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=dk,se,de&q=${encodeURIComponent(q)}`);
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=${city().cc}&q=${encodeURIComponent(q)}`);
       const js = await r.json();
       if (js.length) {
         coords = { lat: +js[0].lat, lng: +js[0].lon };
@@ -1104,7 +1168,8 @@ function openAddSheet() {
       id,
       name,
       cats: newCats.length ? newCats : ["other"],
-      area: sheet.querySelector("#np-area").value.trim() || "Indre By",
+      city: cityKey,
+      area: sheet.querySelector("#np-area").value.trim() || city().areas[0],
       address: sheet.querySelector("#np-addr").value.trim(),
       lat: coords.lat, lng: coords.lng,
       note: sheet.querySelector("#np-note").value.trim(),
@@ -1323,12 +1388,14 @@ document.getElementById("search").oninput = (e) => { query = e.target.value.trim
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function render() {
+  syncCityPick();
   buildChips();
   renderMap();
   renderList();
   renderRoutes();
   const n = filtered().length;
-  const sv = Object.values(store.data.statuses);
+  // Statuses live in one store for both cities; count only the ones for places shown here.
+  const sv = allPlaces().map(p => store.data.statuses[p.id]).filter(Boolean);
   // While filtering on time, say how many places simply have no hours yet — otherwise
   // a short list looks like "nothing is open" rather than "we don't know about most".
   const noHours = timeMode ? allPlaces().filter(p => !hoursState(p, whenSelected())).length : 0;
