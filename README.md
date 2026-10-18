@@ -19,7 +19,7 @@ A single-page web app, no build step, no backend:
 - **Opening hours**: `hours` on a place uses [OSM `opening_hours`](https://wiki.openstreetmap.org/wiki/Key:opening_hours)
   syntax (`Tu-Su 07:30-17:00; Mo off`), with `hoursSrc`/`hoursChk` recording where it came from and when.
   **[hours.csv](hours.csv)** is the editable source — fill a row there and re-merge. Always evaluated in
-  `Europe/Copenhagen`, never device time, so "open now" is right while planning from another timezone.
+  the city's own timezone (`Europe/Copenhagen`, `Europe/Madrid`), never device time, so "open now" is right while planning from another timezone.
   Places with no hours are shown as unknown and never guessed open; the counts line says how many.
   "🕐 Open now" filters to known-open, "⏰ Plan a time" scrubs to any day and hour.
 - **Cities**: the **CPH | BCN** pill in the title switches city. Each city has its own data file
